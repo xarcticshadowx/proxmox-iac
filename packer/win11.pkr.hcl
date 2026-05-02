@@ -47,23 +47,23 @@ source "proxmox-iso" "win11" {
   vm_name       = var.template_name
   template_name = var.template_name
 
+  # Pin IDE slots so OVMF's boot menu order matches intent: Win11 full ISO must not lose to the tiny
+  # cidata ISO (Autounattend-only). Default plugin mapping put boot_iso on ide2 after ide0/ide1 ISOs,
+  # so "first" DVD in the firmware picker was often cidata → 0x80070002 (sources not found).
   boot_iso {
     iso_file = var.iso_file
     unmount  = true
+    type     = "ide"
+    index    = 0
   }
 
-  # Win11 install ISO on ide2 first (matches typical qm config during setup). scsi0 then net0 follow.
-  # With virtio vioscsi loaded in Autounattend (windowsPE), disk enumeration works; Packer still unmounts
-  # boot_iso after install — if setup reboot-loops into the ISO, switch back to scsi0-before-ide2.
-  boot = "order=ide2;scsi0;net0"
+  boot = "order=ide0;scsi0;net0"
 
-  # If ide2 is already first in firmware, only "Press any key…" remains — one Enter.
-  # If you still see the device picker with HARDDISK highlighted, add four "<down>" before "<enter>".
+  # One Enter usually clears "Press any key to boot from CD/DVD…" on ide0 (Win11). Add extra "<enter>"
+  # only if your firmware still stops at that prompt after the first key.
   boot_wait = "10s"
   boot_command = [
-    "<wait18s>",
-    "<enter>",
-    "<wait8s>",
+    "<wait20s>",
     "<enter>",
   ]
 
@@ -110,6 +110,8 @@ source "proxmox-iso" "win11" {
   additional_iso_files {
     iso_file = var.virtio_iso_file
     unmount  = true
+    type     = "ide"
+    index    = 1
   }
 
   additional_iso_files {
@@ -124,6 +126,8 @@ source "proxmox-iso" "win11" {
     ]
     cd_label = "cidata"
     unmount  = true
+    type     = "ide"
+    index    = 2
   }
 
   communicator   = "winrm"
