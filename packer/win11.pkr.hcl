@@ -52,6 +52,14 @@ source "proxmox-iso" "win11" {
     unmount  = true
   }
 
+  # UEFI/BIOS shows "Press any key to boot from CD/DVD..."; without this Packer logs
+  # "No boot command given, skipping" and setup never starts (WinRM/agent errors follow).
+  boot_wait = "8s"
+  boot_command = [
+    "<wait15s>",
+    "<enter>",
+  ]
+
   qemu_agent = true
   os         = "win11"
   machine    = "q35"
