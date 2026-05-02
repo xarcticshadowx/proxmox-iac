@@ -56,7 +56,7 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 - `**IAC_REPO_PATH`** — only if the repo lives at a **fixed path** you manage yourself (not Portainer’s checkout), e.g. `/opt/stacks/proxmox-iac`.
 - `**SSH_KEY_PATH`** — only if the OpenTofu provider must use a **host SSH private key** file (uncommon when using API tokens).
 
-Configure every variable from `.env.example` in **Portainer → Stack → Environment** (recommended for Git stacks), and/or create a `**.env` file on the Docker host** next to the compose checkout. `**docker-compose.yml` passes each key via `environment: VAR: ${VAR}`** so Portainer substitutes stack variables into the containers (required for Packer `PKR_VAR_*`). Optional `**env_file**` still loads a host `.env` when present.
+Configure every variable from `.env.example` in **Portainer → Stack → Environment** (recommended for Git stacks), and/or create a `**.env` file on the Docker host** next to the compose checkout. `**docker-compose.yml` passes each key via `environment: VAR: ${VAR}`** so Portainer substitutes stack variables into the containers (required for Packer `PKR_VAR_*`). Optional `**env_file`** still loads a host `.env` when present.
 
 Optional: build `**Dockerfile.ansible`**, push to your registry, then switch the `ansible` service `image:` in `docker-compose.yml` as commented in the file.
 
@@ -131,7 +131,7 @@ If you ever run Ansible directly on Windows and hit **“locale encoding must be
 
 ## 11. Later: new Windows ISO (runbook Phase 12)
 
-When you adopt a new ISO: update `**PKR_VAR_*`** (template id/name, `iso_file`) in `.env`, rebuild with Packer, update `**TF_VAR_win11_template_id**`, then `tofu plan` / `tofu apply`.
+When you adopt a new ISO: update `**PKR_VAR_*`** (template id/name, `iso_file`) in `.env`, rebuild with Packer, update `**TF_VAR_win11_template_id`**, then `tofu plan` / `tofu apply`.
 
 ---
 
