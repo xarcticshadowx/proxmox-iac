@@ -53,6 +53,7 @@ services:
       PKR_VAR_winrm_username: ${PKR_VAR_winrm_username}
       PKR_VAR_win11_install_wim_index: ${PKR_VAR_win11_install_wim_index:-6}
       PKR_VAR_win11_install_filename: ${PKR_VAR_win11_install_filename:-install.wim}
+      PKR_VAR_win11_install_image_name: ${PKR_VAR_win11_install_image_name:-}
     networks:
       - iac
     restart: unless-stopped

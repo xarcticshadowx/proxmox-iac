@@ -1,8 +1,8 @@
 # Run `packer/scripts/render-autounattend.ps1` (or .sh), or `scripts/packer-build-with-render.sh`,
 # before `packer validate|build` so `answer/Autounattend.xml` is never the git placeholder (REPLACE_ME).
 # iac-packer runs render on container start—recreate the container after changing WINRM_PASSWORD / PKR_VAR_*.
-# Vars: PKR_VAR_win11_install_wim_index, PKR_VAR_win11_install_filename (default install.wim), WINRM_PASSWORD.
-# Set PKR_VAR_win11_install_wim_index if index 6 is wrong (dism /Get-WimInfo).
+# Vars: PKR_VAR_win11_install_wim_index, optional PKR_VAR_win11_install_image_name (Name from dism; overrides index),
+# PKR_VAR_win11_install_filename, WINRM_PASSWORD. If 0x80070002 persists, use /IMAGE/NAME or correct index from dism /Get-WimInfo.
 packer {
   required_plugins {
     proxmox = {
