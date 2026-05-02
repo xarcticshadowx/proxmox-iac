@@ -7,18 +7,20 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 ## 1. Repository and Git (optional)
 
 - Push or clone this repo somewhere your **Docker host** can read (filesystem bind mount, or Portainer Git stack).
-- If you use GitHub from this PC: install GitHub CLI (`winget install GitHub.cli`) and run **`gh auth login`** in **your** terminal (interactive browser login).
+- If you use GitHub from this PC: install GitHub CLI (`winget install GitHub.cli`) and run `**gh auth login`** in **your** terminal (interactive browser login).
 
 ---
 
 ## 2. Local secrets and copies (do not commit)
 
-| Template | Create locally |
-|----------|----------------|
-| `.env.example` | `.env` on the Docker host with real `PROXMOX_*`, `TF_VAR_*`, `IAC_REPO_PATH`, `SSH_KEY_PATH` |
-| `packer/vars-25h2.pkrvars.hcl.example` | `packer/vars-25h2.pkrvars.hcl` (real Proxmox token, ISO paths, `winrm_password`, template ID/name) |
-| `tofu/terraform.tfvars.example` | `tofu/terraform.tfvars` (or set equivalent `TF_VAR_*` in the stack env) |
-| `ansible/group_vars/windows/vault.yml.example` | `ansible/group_vars/windows/vault.yml` then `ansible-vault encrypt` on that file |
+
+| Template                                       | Create locally                                                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `.env.example`                                 | Stack env: `PROXMOX_*`, `TF_VAR_*`. With Portainer Git stack, omit `IAC_REPO_PATH` and `SSH_KEY_PATH` (see §5) |
+| `packer/vars-25h2.pkrvars.hcl.example`         | `packer/vars-25h2.pkrvars.hcl` (real Proxmox token, ISO paths, `winrm_password`, template ID/name)      |
+| `tofu/terraform.tfvars.example`                | `tofu/terraform.tfvars` (or set equivalent `TF_VAR_*` in the stack env)                                 |
+| `ansible/group_vars/windows/vault.yml.example` | `ansible/group_vars/windows/vault.yml` then `ansible-vault encrypt` on that file                        |
+
 
 `.gitignore` already excludes `.env`, `*.pkrvars.hcl`, and `vault.yml`.
 
@@ -35,22 +37,37 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 ## 4. Unattend and template alignment
 
 - In `packer/answer/Autounattend.xml`, the **Windows image name** under `InstallFrom` / `MetaData` must match your ISO (e.g. `dism /Get-WimInfo` on the mounted ISO). The repo default targets **Windows 11 Pro**; change if your media is different.
-- Keep the **local `packer` user password** in `Autounattend.xml` in sync with **`winrm_password`** in your Packer vars file.
-- After Packer finishes, note the **template VM ID and name**; they must match **`TF_VAR_win11_template_id`** (and your Terraform/OpenTofu variables).
+- Keep the **local `packer` user password** in `Autounattend.xml` in sync with `**winrm_password`** in your Packer vars file.
+- After Packer finishes, note the **template VM ID and name**; they must match `**TF_VAR_win11_template_id`** (and your Terraform/OpenTofu variables).
 
 ---
 
 ## 5. Portainer stack (runbook Phases 2–3)
 
-- Deploy the Compose stack (e.g. name **`proxmox-win11-iac`**) so containers **`iac-packer`**, **`iac-tofu`**, **`iac-ansible`** can reach the repo at **`IAC_REPO_PATH`** (or equivalent mount).
-- Ensure stack environment variables match `.env.example` for your cluster (bridge, datastore, node, VM IDs, names).
-- Optional: build **`Dockerfile.ansible`**, push to your registry, then switch the `ansible` service `image:` in `docker-compose.yml` as commented in the file.
+**Volumes**
+
+- **`/workspace`** — **bind mount only**: `${IAC_REPO_PATH:-.}` maps the **host repo directory** (cloned/checked-out files) into the containers. Nothing else is named here.
+- **Named Docker volumes** (persist across restarts): `packer_cache`, `packer_plugins`, `tofu_cache`, `ansible_home` — Packer/OpenTofu/Ansible caches and Ansible’s `/root`, **not** your Git tree.
+
+**Environment — Portainer stack from Git (usual case)**
+
+- **Do not set `IAC_REPO_PATH` or `SSH_KEY_PATH`.** Compose uses **`.`** for the workspace bind, which is Portainer’s **Git checkout folder** on the Docker host, so `packer/`, `tofu/`, and `ansible/` appear under `/workspace`. Redeploys refresh the checkout; containers see updated files.
+- **Do not set `SSH_KEY_PATH`** if Proxmox auth is **API token only** (typical for OpenTofu with this stack).
+
+**When you would set them**
+
+- **`IAC_REPO_PATH`** — only if the repo lives at a **fixed path** you manage yourself (not Portainer’s checkout), e.g. `/opt/stacks/proxmox-iac`.
+- **`SSH_KEY_PATH`** — only if the OpenTofu provider must use a **host SSH private key** file (uncommon when using API tokens).
+
+Add `PROXMOX_*` and `TF_VAR_*` per `.env.example`.
+
+Optional: build **`Dockerfile.ansible`**, push to your registry, then switch the `ansible` service `image:` in `docker-compose.yml` as commented in the file.
 
 ---
 
 ## 6. Run Packer (runbook Phase 7)
 
-From the **`iac-packer`** container console (or `docker exec`):
+From the `**iac-packer**` container console (or `docker exec`):
 
 ```bash
 cd /workspace/packer
@@ -65,7 +82,7 @@ Confirm the Windows template exists in Proxmox before continuing.
 
 ## 7. Run OpenTofu (runbook Phase 9)
 
-From **`iac-tofu`**:
+From `**iac-tofu**`:
 
 ```bash
 cd /workspace/tofu
@@ -76,15 +93,15 @@ tofu plan
 tofu apply
 ```
 
-Ensure **`win11_template_id`** matches the Packer-built template.
+Ensure `**win11_template_id**` matches the Packer-built template.
 
 ---
 
 ## 8. Ansible inventory and guest access (runbook Phases 10–11)
 
-- Set **`ansible_host`** in `ansible/inventory/hosts.yml` to the **live IP** of the cloned VM.
-- The playbook assumes a Windows admin account **`devadmin`** with the password in the vault; create that user on the guest (or adjust **`ansible_user`** / automation account) so WinRM matches what you configured after clone/sysprep.
-- From **`iac-ansible`**:
+- Set `**ansible_host**` in `ansible/inventory/hosts.yml` to the **live IP** of the cloned VM.
+- The playbook assumes a Windows admin account `**devadmin`** with the password in the vault; create that user on the guest (or adjust `**ansible_user`** / automation account) so WinRM matches what you configured after clone/sysprep.
+- From `**iac-ansible`**:
 
 ```bash
 cd /workspace/ansible
@@ -99,15 +116,12 @@ ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml --ask-vault-pass
 
 ## 9. Validate playbooks on your workstation (optional)
 
-- **Ansible is not supported as a controller on native Windows** for current ansible-core (Unix-only modules). Use the **`iac-ansible`** container, or **WSL (Ubuntu)**.
+- **Ansible is not supported as a controller on native Windows** for current ansible-core (Unix-only modules). Use the `**iac-ansible`** container, or **WSL (Ubuntu)**.
 - In WSL, you can run:
-
   ```bash
   bash /mnt/c/Users/KrisPennington/Downloads/ansible/ansible/scripts/wsl-syntax-check.sh
   ```
-
   (Adjust the path if your repo lives elsewhere.) First-time Ubuntu setup may require **`sudo apt install ansible`** or the user-space script **`ansible/scripts/wsl-install-ansible-user.sh`** if you avoid `sudo`.
-
 - If **Intune Attack Surface Reduction** blocks Python/Ansible, add an exclusion for your dev tools as you did before.
 
 ---
@@ -120,7 +134,7 @@ If you ever run Ansible directly on Windows and hit **“locale encoding must be
 
 ## 11. Later: new Windows ISO (runbook Phase 12)
 
-When you adopt a new ISO: copy/new Packer vars (`template_vm_id`, `template_name`, `iso_file`), rebuild with Packer, update **`TF_VAR_win11_template_id`**, then `tofu plan` / `tofu apply`.
+When you adopt a new ISO: copy/new Packer vars (`template_vm_id`, `template_name`, `iso_file`), rebuild with Packer, update `**TF_VAR_win11_template_id`**, then `tofu plan` / `tofu apply`.
 
 ---
 

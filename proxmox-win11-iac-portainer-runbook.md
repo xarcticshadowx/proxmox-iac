@@ -120,7 +120,7 @@ In Portainer:
 
 ### Compose file
 
-Use this as `docker-compose.yml`:
+Use this as `docker-compose.yml` (or the copy in the repository root):
 
 ```yaml
 services:
@@ -238,12 +238,11 @@ image: registry.example.internal/ansible-windows:latest
 
 ## Phase 3: Configure stack environment variables
 
-In Portainer, add these environment variables to the stack. Use your actual values:
+In Portainer, add these environment variables to the stack. Use your actual values.
+
+For a **stack deployed from Git**, you normally **omit** `IAC_REPO_PATH` and `SSH_KEY_PATH` (workspace bind uses the checkout path; API-token auth for Proxmox). Add the optional lines only for a manual repo path or OpenTofu SSH key — see `.env.example`.
 
 ```bash
-IAC_REPO_PATH=/opt/stacks/proxmox-win11-dev-iac
-SSH_KEY_PATH=/home/youruser/.ssh/id_rsa
-
 PROXMOX_URL=https://pve01.example.internal:8006/api2/json
 PROXMOX_USERNAME=terraform@pve
 PROXMOX_TOKEN=terraform@pve!iac=REDACTED
@@ -257,8 +256,6 @@ TF_VAR_vm_id=1101
 TF_VAR_vm_name=win11-dev-01
 TF_VAR_bridge=vmbr0
 ```
-
-If your Portainer stack is deployed from Git and Portainer checks the repo out internally, you may not need `IAC_REPO_PATH`. If the stack uses bind mounts, make sure the path exists on the Docker host and contains the repo.
 
 ## Phase 4: Prepare Proxmox
 
