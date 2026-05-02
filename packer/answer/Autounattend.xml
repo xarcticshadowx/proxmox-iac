@@ -15,6 +15,14 @@
       <UserLocale>en-US</UserLocale>
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <!-- Setup reboot-loops if TPM/RAM/CPU/SB checks fail before install (common on bare VMs). LabConfig is the MS-documented lab bypass; vTPM in win11.pkr.hcl should satisfy TPM when possible. -->
+      <RunSynchronous>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Description>LabConfig bypass for Win11 hardware checks (windows PE)</Description>
+          <Path>cmd.exe /c reg.exe add HKLM\SYSTEM\Setup\LabConfig /v BypassTPMCheck /t REG_DWORD /d 1 /f &amp; reg.exe add HKLM\SYSTEM\Setup\LabConfig /v BypassSecureBootCheck /t REG_DWORD /d 1 /f &amp; reg.exe add HKLM\SYSTEM\Setup\LabConfig /v BypassRAMCheck /t REG_DWORD /d 1 /f &amp; reg.exe add HKLM\SYSTEM\Setup\LabConfig /v BypassCPUCheck /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
+      </RunSynchronous>
       <DiskConfiguration>
         <Disk wcm:action="add">
           <DiskID>0</DiskID>
