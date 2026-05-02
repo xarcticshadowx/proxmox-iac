@@ -1,0 +1,2 @@
+# Shell in Linux containers must use LF; CRLF causes `sh` startup failures / restart loops.
+packer/scripts/*.sh text eol=lf
