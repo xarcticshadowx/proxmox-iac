@@ -1,11 +1,12 @@
-# proxmox-win11-iac Portainer stack — vars live in repo `.env.example`; runtime values via optional `.env`
-# file on the host OR Portainer stack Environment (Git stacks never ship `.env`; UI upload does not
-# create a path Compose can open — use Stack Environment for every key, or optional file below).
+# proxmox-win11-iac Portainer stack — vars listed in `.env.example`.
 #
-# env_file uses required: false so deploy succeeds without a physical `.env` on disk (Compose spec 3.34+).
+# `env_file` (optional): loads a host `.env` next to this file when it exists.
 #
-# Workspace bind: ${IAC_REPO_PATH:-.} → /workspace (Portainer Git stack: omit IAC_REPO_PATH).
-# OpenTofu SSH optional: SSH_KEY_PATH for host private key (default mounts /dev/null as id_rsa).
+# `environment` below: **required for Portainer**. Stack Environment variables are injected when
+# Compose substitutes `${VAR}` at deploy time; they do not automatically appear in containers unless
+# listed here (uploading a dotenv in the UI still supplies vars for this substitution).
+#
+# Workspace: ${IAC_REPO_PATH:-.} → /workspace. SSH_KEY_PATH optional for OpenTofu host key.
 
 services:
   packer:
@@ -23,6 +24,19 @@ services:
       - packer_plugins:/root/.config/packer
     environment:
       PACKER_LOG: "1"
+      TF_VAR_proxmox_api_token: ${TF_VAR_proxmox_api_token}
+      WINRM_PASSWORD: ${WINRM_PASSWORD}
+      PKR_VAR_proxmox_url: ${PKR_VAR_proxmox_url}
+      PKR_VAR_proxmox_node: ${PKR_VAR_proxmox_node}
+      PKR_VAR_proxmox_username: ${PKR_VAR_proxmox_username}
+      PKR_VAR_template_vm_id: ${PKR_VAR_template_vm_id}
+      PKR_VAR_template_name: ${PKR_VAR_template_name}
+      PKR_VAR_iso_file: ${PKR_VAR_iso_file}
+      PKR_VAR_virtio_iso_file: ${PKR_VAR_virtio_iso_file}
+      PKR_VAR_vm_storage: ${PKR_VAR_vm_storage}
+      PKR_VAR_iso_storage: ${PKR_VAR_iso_storage}
+      PKR_VAR_bridge: ${PKR_VAR_bridge}
+      PKR_VAR_winrm_username: ${PKR_VAR_winrm_username}
     networks:
       - iac
     restart: unless-stopped
@@ -40,6 +54,15 @@ services:
       - ${IAC_REPO_PATH:-.}:/workspace
       - tofu_cache:/root/.terraform.d
       - ${SSH_KEY_PATH:-/dev/null}:/root/.ssh/id_rsa:ro
+    environment:
+      TF_VAR_proxmox_endpoint: ${TF_VAR_proxmox_endpoint}
+      TF_VAR_proxmox_api_token: ${TF_VAR_proxmox_api_token}
+      TF_VAR_proxmox_node: ${TF_VAR_proxmox_node}
+      TF_VAR_datastore: ${TF_VAR_datastore}
+      TF_VAR_win11_template_id: ${TF_VAR_win11_template_id}
+      TF_VAR_vm_id: ${TF_VAR_vm_id}
+      TF_VAR_vm_name: ${TF_VAR_vm_name}
+      TF_VAR_bridge: ${TF_VAR_bridge}
     networks:
       - iac
     restart: unless-stopped
@@ -62,6 +85,8 @@ services:
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - ansible_home:/root
+    environment:
+      WINDOWS_ADMIN_PASSWORD: ${WINDOWS_ADMIN_PASSWORD}
     networks:
       - iac
     restart: unless-stopped

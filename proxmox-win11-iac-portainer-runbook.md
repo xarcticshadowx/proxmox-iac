@@ -117,74 +117,35 @@ In Portainer:
 
 ### Compose file
 
-Use this as `docker-compose.yml` (or the copy in the repository root). Each service uses **`env_file` with `required: false`** so deploy works when no `.env` file exists; **Portainer stack Environment** still injects variables into containers.
+Use the repository root **`docker-compose.yml`** as-is. Each service uses optional **`env_file`** (`required: false`) **and** an explicit **`environment`** block that passes **`${VAR}`** through from Portainer stack Environment / host `.env`. That passthrough is required so variables reach containers (stack UI variables alone are not merged automatically).
+
+Abbreviated pattern:
 
 ```yaml
-services:
-  packer:
-    image: hashicorp/packer:latest
-    container_name: iac-packer
-    working_dir: /workspace/packer
-    entrypoint: ["/bin/sh", "-lc"]
-    command: ["sleep infinity"]
-    env_file:
-      - path: .env
-        required: false
-    volumes:
-      - ${IAC_REPO_PATH:-.}:/workspace
-      - packer_cache:/root/.cache/packer
-      - packer_plugins:/root/.config/packer
-    environment:
-      PACKER_LOG: "1"
-    networks:
-      - iac
-    restart: unless-stopped
+packer:
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    PACKER_LOG: "1"
+    TF_VAR_proxmox_api_token: ${TF_VAR_proxmox_api_token}
+    WINRM_PASSWORD: ${WINRM_PASSWORD}
+    PKR_VAR_proxmox_url: ${PKR_VAR_proxmox_url}
+    # …all PKR_VAR_* keys from `.env.example`
+```
 
-  tofu:
-    image: ghcr.io/opentofu/opentofu:latest
-    container_name: iac-tofu
-    working_dir: /workspace/tofu
-    entrypoint: ["/bin/sh", "-lc"]
-    command: ["sleep infinity"]
-    env_file:
-      - path: .env
-        required: false
-    volumes:
-      - ${IAC_REPO_PATH:-.}:/workspace
-      - tofu_cache:/root/.terraform.d
-      - ${SSH_KEY_PATH:-/dev/null}:/root/.ssh/id_rsa:ro
-    networks:
-      - iac
-    restart: unless-stopped
+```yaml
+tofu:
+  environment:
+    TF_VAR_proxmox_endpoint: ${TF_VAR_proxmox_endpoint}
+    TF_VAR_proxmox_api_token: ${TF_VAR_proxmox_api_token}
+    # …remaining TF_VAR_* from `.env.example`
+```
 
-  ansible:
-    image: cytopia/ansible:latest
-    container_name: iac-ansible
-    working_dir: /workspace/ansible
-    entrypoint: ["/bin/sh", "-lc"]
-    command:
-      - >
-        python3 -m pip install --user --break-system-packages pywinrm pypsrp requests-credssp || true;
-        ansible-galaxy collection install ansible.windows community.windows || true;
-        sleep infinity
-    env_file:
-      - path: .env
-        required: false
-    volumes:
-      - ${IAC_REPO_PATH:-.}:/workspace
-      - ansible_home:/root
-    networks:
-      - iac
-    restart: unless-stopped
-
-networks:
-  iac:
-
-volumes:
-  packer_cache:
-  packer_plugins:
-  tofu_cache:
-  ansible_home:
+```yaml
+ansible:
+  environment:
+    WINDOWS_ADMIN_PASSWORD: ${WINDOWS_ADMIN_PASSWORD}
 ```
 
 ### Better Ansible image option
