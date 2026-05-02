@@ -2,7 +2,7 @@
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <!--
     Lab template: password must match winrm_password in your vars file (default in .example).
-    Set InstallFrom MetaData Value to an edition name from your ISO (dism /Get-WimInfo).
+    InstallFrom uses /IMAGE/INDEX — confirm with dism /Get-WimInfo on sources/install.wim or install.esd.
   -->
   <settings pass="windowsPE">
     <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -17,7 +17,7 @@
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <!--
         Proxmox uses virtio-scsi-single; WinPE has no vioscsi driver, so "Where do you want to install Windows?"
-        shows no disks until vioscsi.inf is loaded from the virtio-win ISO (ide1 when using pinned slots in win11.pkr.hcl). This must run before DiskConfiguration.
+        shows no disks until vioscsi.inf is loaded from the virtio-win ISO (sata0 when virtio is on SATA in win11.pkr.hcl). This must run before DiskConfiguration.
       -->
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add">
@@ -74,10 +74,16 @@
             <DiskID>0</DiskID>
             <PartitionID>3</PartitionID>
           </InstallTo>
+          <!--
+            Use IMAGE/INDEX (not NAME) so a typo or SKU rename on the ISO does not yield 0x80070002.
+            Run on a mounted ISO: dism /Get-WimInfo /WimFile:X:\sources\install.wim  (or install.esd)
+            and set Value to the index that matches your edition (retail multi-edition ISOs often have
+            Windows 11 Pro at index 6 — verify for your Win11_25H2 build).
+          -->
           <InstallFrom>
             <MetaData wcm:action="add">
-              <Key>/IMAGE/NAME</Key>
-              <Value>Windows 11 Pro</Value>
+              <Key>/IMAGE/INDEX</Key>
+              <Value>6</Value>
             </MetaData>
           </InstallFrom>
         </OSImage>
