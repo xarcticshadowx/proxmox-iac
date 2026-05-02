@@ -14,10 +14,12 @@ variable "proxmox_token" {
   type      = string
   sensitive = true
   description = <<-EOT
-    Full Proxmox API token string (user@realm!tokenid=secret).
-    Prefers TF_VAR_proxmox_api_token (same as OpenTofu); if empty, uses PKR_VAR_proxmox_token.
+    Proxmox API token (same value as OpenTofu TF_VAR_proxmox_api_token / bpg provider).
+    Reads env in order: TF_VAR_proxmox_api_token, PKR_VAR_proxmox_token, PROXMOX_TOKEN.
     EOT
-  default = env("TF_VAR_proxmox_api_token") != "" ? env("TF_VAR_proxmox_api_token") : env("PKR_VAR_proxmox_token")
+  default = env("TF_VAR_proxmox_api_token") != "" ? env("TF_VAR_proxmox_api_token") : (
+    env("PKR_VAR_proxmox_token") != "" ? env("PKR_VAR_proxmox_token") : env("PROXMOX_TOKEN")
+  )
 }
 variable "template_vm_id" { type = number }
 variable "template_name" { type = string }
@@ -45,8 +47,10 @@ source "proxmox-iso" "win11" {
   vm_name       = var.template_name
   template_name = var.template_name
 
-  iso_file    = var.iso_file
-  unmount_iso = true
+  boot_iso {
+    iso_file = var.iso_file
+    unmount  = true
+  }
 
   qemu_agent = true
   os         = "win11"
