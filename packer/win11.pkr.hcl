@@ -1,8 +1,8 @@
 # Run `packer/scripts/render-autounattend.ps1` (or .sh) before `packer validate|build` so
-# `answer/Autounattend.xml` exists: WIM index from PKR_VAR_win11_install_wim_index, local account
-# password from WINRM_PASSWORD (must match winrm_password). The iac-packer container runs render
-# on start (see docker-compose). Set PKR_VAR_win11_install_wim_index if index 6 is wrong
-# (dism /Get-WimInfo on sources\install.wim or install.esd).
+# `answer/Autounattend.xml` exists: image index from PKR_VAR_win11_install_wim_index, install.esd vs
+# install.wim from PKR_VAR_win11_install_filename (default install.wim; set install.esd for MCT-only-esd ISOs), local account password from
+# WINRM_PASSWORD (must match winrm_password). The iac-packer container runs render on start (see
+# docker-compose). Set PKR_VAR_win11_install_wim_index if index 6 is wrong (dism /Get-WimInfo).
 packer {
   required_plugins {
     proxmox = {
@@ -55,6 +55,9 @@ source "proxmox-iso" "win11" {
   # Win11 boot ISO is the ONLY ide CD-ROM (ide0). virtio-win + cidata use SATA so OVMF's "DVD-ROM
   # QMxxxxx" list is not three IDE drives in plugin default order (QMxxxx numbers are QEMU-enumerated,
   # not ide slot numbers). First blue-menu entry was often not the full Windows media before this split.
+  #
+  # Shift+F10 troubleshooting: X: is WinPE (boot.wim RAMdisk); install.esd/install.wim live under
+  # sources\ on the ide0 ISO volume (often D:–H:, not X:). Example: for %d in (D E F G H) do @dir %d:\sources\install.*
   boot_iso {
     iso_file = var.iso_file
     unmount  = true

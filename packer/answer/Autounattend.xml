@@ -76,7 +76,7 @@
             <DiskID>0</DiskID>
             <PartitionID>3</PartitionID>
           </InstallTo>
-          <!-- If your ISO only has install.esd, change Path to \sources\install.esd (same folder as on mounted ISO). -->
+          <!-- Baked by render-autounattend (PKR_VAR_win11_install_filename; default install.wim). -->
           <InstallFrom>
             <Path>\sources\install.wim</Path>
             <MetaData wcm:action="add">
