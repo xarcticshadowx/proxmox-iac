@@ -1,8 +1,8 @@
-# Run `packer/scripts/render-autounattend.ps1` (or .sh) before `packer validate|build` so
-# `answer/Autounattend.xml` exists: image index from PKR_VAR_win11_install_wim_index, install.esd vs
-# install.wim from PKR_VAR_win11_install_filename (default install.wim; set install.esd for MCT-only-esd ISOs), local account password from
-# WINRM_PASSWORD (must match winrm_password). The iac-packer container runs render on start (see
-# docker-compose). Set PKR_VAR_win11_install_wim_index if index 6 is wrong (dism /Get-WimInfo).
+# Run `packer/scripts/render-autounattend.ps1` (or .sh), or `scripts/packer-build-with-render.sh`,
+# before `packer validate|build` so `answer/Autounattend.xml` is never the git placeholder (REPLACE_ME).
+# iac-packer runs render on container start—recreate the container after changing WINRM_PASSWORD / PKR_VAR_*.
+# Vars: PKR_VAR_win11_install_wim_index, PKR_VAR_win11_install_filename (default install.wim), WINRM_PASSWORD.
+# Set PKR_VAR_win11_install_wim_index if index 6 is wrong (dism /Get-WimInfo).
 packer {
   required_plugins {
     proxmox = {

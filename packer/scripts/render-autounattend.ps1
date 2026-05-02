@@ -18,7 +18,9 @@ $xml = Get-Content -Raw -Path $inPath
 $xml = $xml.Replace('__PKR_WIM_INDEX__', $idx)
 $xml = $xml.Replace('__INSTALL_FILENAME__', $installFile)
 $xml = $xml.Replace('__WINRM_PASSWORD__', $pw)
-Set-Content -Path $outPath -Value $xml -Encoding utf8
+# UTF-8 without BOM — BOM-prefixed Autounattend.xml breaks Windows Setup XML parsing in PE/OOBE.
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($outPath, $xml, $utf8NoBom)
 Write-Host "Rendered $outPath with /IMAGE/INDEX=$idx"
 
 # #region agent log
@@ -31,10 +33,13 @@ try {
   $imgIdx = $null
   if ($rawOut -match '<Key>/IMAGE/INDEX</Key>\s*<Value>([^<]+)</Value>') { $imgIdx = $Matches[1].Trim() }
   $placeholderLeak = [bool]($rawOut -match '__PKR_WIM_INDEX__|__WINRM_PASSWORD__|__INSTALL_FILENAME__')
+  $repoReplaceMe = [bool]($rawOut -match '<Value>REPLACE_ME</Value>')
+  $bytes = [System.IO.File]::ReadAllBytes($outPath)
+  $utf8Bom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
   $kind = if ($installFrom -match 'install\.esd') { 'esd' } elseif ($installFrom -match 'install\.wim') { 'wim' } else { 'other' }
   $payload = [ordered]@{
     sessionId    = 'd29db6'
-    hypothesisId = 'H1-H4'
+    hypothesisId = 'H1-H5'
     location     = 'render-autounattend.ps1'
     message      = 'Autounattend rendered (host)'
     data         = @{
@@ -43,6 +48,8 @@ try {
       installMediaKind = $kind
       imageIndex      = $imgIdx
       placeholderLeak = $placeholderLeak
+      repoReplaceMePasswordStillPresent = $repoReplaceMe
+      utf8BomPresent    = $utf8Bom
     }
     timestamp    = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
   }

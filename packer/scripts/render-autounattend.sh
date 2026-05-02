@@ -39,6 +39,13 @@ case "$PATH_LINE" in
   *install.wim) KIND="wim" ;;
 esac
 TS_MS=$(( $(date +%s) * 1000 ))
-printf '{"sessionId":"d29db6","hypothesisId":"H1-H4","location":"render-autounattend.sh","message":"Autounattend rendered (host)","data":{"installMediaKind":"%s","installFilename":"%s","renderedIndex":"%s","placeholderLeak":%s},"timestamp":%s}\n' \
-  "$KIND" "$INSTFN" "$IDX" "$LEAK" "$TS_MS" >>"$LOG" || true
+BOM=0
+if command -v od >/dev/null 2>&1; then
+  FIRST=$(od -An -tx1 -N3 "$OUT" 2>/dev/null | tr -d ' \n')
+  case "$FIRST" in efbbbf|EFBBBF) BOM=1 ;; esac
+fi
+REP=0
+grep -q '<Value>REPLACE_ME</Value>' "$OUT" 2>/dev/null && REP=1 || true
+printf '{"sessionId":"d29db6","hypothesisId":"H1-H5","location":"render-autounattend.sh","message":"Autounattend rendered (host)","data":{"installMediaKind":"%s","installFilename":"%s","renderedIndex":"%s","placeholderLeak":%s,"utf8BomPresent":%s,"repoReplaceMePasswordStillPresent":%s},"timestamp":%s}\n' \
+  "$KIND" "$INSTFN" "$IDX" "$LEAK" "$BOM" "$REP" "$TS_MS" >>"$LOG" || true
 # #endregion
