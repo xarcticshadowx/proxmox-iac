@@ -3,6 +3,19 @@
 #   docker build -f Dockerfile.ansible -t registry.example.internal/ansible-windows:latest .
 #   docker push registry.example.internal/ansible-windows:latest
 # Then replace the ansible service image below with that tag.
+#
+# --- /workspace (bind mount only) ---
+# Host directory → /workspace: ${IAC_REPO_PATH:-.}  (packer/, tofu/, ansible/)
+# Portainer "stack from Git": omit IAC_REPO_PATH so `.` is the Git checkout (repo root).
+# Manual clone elsewhere: set IAC_REPO_PATH to that absolute path on the Docker host.
+#
+# --- Named Docker volumes (everything except workspace) ---
+# packer_cache, packer_plugins — Packer downloads/plugins persist across container restarts.
+# tofu_cache — OpenTofu provider/plugin cache (~/.terraform.d).
+# ansible_home — persistent /root in iac-ansible (pip --user, galaxy metadata).
+#
+# OpenTofu SSH (optional): set SSH_KEY_PATH to a host key file, or omit for API-token-only
+# (default mounts /dev/null at /root/.ssh/id_rsa).
 
 services:
   packer:
