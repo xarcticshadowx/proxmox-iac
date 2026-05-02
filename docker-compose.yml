@@ -17,10 +17,13 @@ services:
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
-        if [ -f /workspace/packer/scripts/render-autounattend.sh ]; then
-          sh /workspace/packer/scripts/render-autounattend.sh || echo "WARN: render-autounattend failed (check answer/Autounattend.in.xml and CRLF/LF on scripts)"
-        else
-          echo "WARN: render-autounattend.sh missing — skipping"
+        if [ ! -f /workspace/packer/scripts/render-autounattend.sh ]; then
+          echo "FATAL: render-autounattend.sh missing under /workspace/packer/scripts/"
+          exit 1
+        fi
+        if ! sh /workspace/packer/scripts/render-autounattend.sh; then
+          echo "FATAL: render-autounattend failed. Set WINRM_PASSWORD (and PKR_VAR_*) in Portainer stack Environment / host .env so compose can substitute into iac-packer, then recreate the packer container."
+          exit 1
         fi
         exec sleep infinity
     env_file:

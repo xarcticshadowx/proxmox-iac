@@ -13,9 +13,10 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 
 ## 2. Local configuration (do not commit)
 
-| Template      | Create locally |
-| ------------- | -------------- |
-| `.env.example` | Use every key in **Portainer → Stack → Environment** (best for Git stacks). Optionally also maintain a **`.env`** on the Docker host beside the compose file. Fill in all `TF_VAR_*`, `PKR_VAR_*`, `WINRM_PASSWORD`, and `WINDOWS_ADMIN_PASSWORD`. Omit `IAC_REPO_PATH` and `SSH_KEY_PATH` when applicable (see §5). |
+
+| Template       | Create locally                                                                                                                                                                                                                                                                                                       |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.env.example` | Use every key in **Portainer → Stack → Environment** (best for Git stacks). Optionally also maintain a `**.env`** on the Docker host beside the compose file. Fill in all `TF_VAR_*`, `PKR_VAR_*`, `WINRM_PASSWORD`, and `WINDOWS_ADMIN_PASSWORD`. Omit `IAC_REPO_PATH` and `SSH_KEY_PATH` when applicable (see §5). |
 
 
 `.gitignore` already excludes `.env` and `*.pkrvars.hcl` (legacy local files only).
@@ -24,8 +25,8 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 
 ## 3. Proxmox preparation (runbook Phase 4)
 
-- Upload **Windows 11** and **virtio-win** ISOs to the ISO storage you reference in **`.env`** as `PKR_VAR_iso_file` / `PKR_VAR_virtio_iso_file`.
-- Create a **Proxmox API token** (e.g. `terraform@pve!iac=...`) and set **`TF_VAR_proxmox_api_token`** in `.env` (Packer reuses it for `proxmox_token`).
+- Upload **Windows 11** and **virtio-win** ISOs to the ISO storage you reference in `**.env`** as `PKR_VAR_iso_file` / `PKR_VAR_virtio_iso_file`.
+- Create a **Proxmox API token** (e.g. `terraform@pve!iac=...`) and set `**TF_VAR_proxmox_api_token`** in `.env` (Packer reuses it for `proxmox_token`).
 - Tighten token permissions after the first successful end-to-end run.
 
 ---
@@ -33,8 +34,8 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 ## 4. Unattend and template alignment
 
 - In `packer/answer/Autounattend.xml`, the **Windows image name** under `InstallFrom` / `MetaData` must match your ISO (e.g. `dism /Get-WimInfo` on the mounted ISO). The repo default targets **Windows 11 Pro**; change if your media is different.
-- Keep the **local `packer` user password** in `Autounattend.xml` in sync with **`WINRM_PASSWORD`** in your repo root `.env`.
-- After Packer finishes, note the **template VM ID and name**; they must match **`TF_VAR_win11_template_id`** (and your OpenTofu variables).
+- Keep the **local `packer` user password** in `Autounattend.xml` in sync with `**WINRM_PASSWORD`** in your repo root `.env`.
+- After Packer finishes, note the **template VM ID and name**; they must match `**TF_VAR_win11_template_id`** (and your OpenTofu variables).
 
 ---
 
@@ -55,7 +56,7 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 - `**IAC_REPO_PATH`** — only if the repo lives at a **fixed path** you manage yourself (not Portainer’s checkout), e.g. `/opt/stacks/proxmox-iac`.
 - `**SSH_KEY_PATH`** — only if the OpenTofu provider must use a **host SSH private key** file (uncommon when using API tokens).
 
-Configure every variable from `.env.example` in **Portainer → Stack → Environment** (recommended for Git stacks), and/or create a **`.env` file on the Docker host** next to the compose checkout. **`docker-compose.yml` passes each key via `environment: VAR: ${VAR}`** so Portainer substitutes stack variables into the containers (required for Packer `PKR_VAR_*`). Optional **`env_file`** still loads a host `.env` when present.
+Configure every variable from `.env.example` in **Portainer → Stack → Environment** (recommended for Git stacks), and/or create a `**.env` file on the Docker host** next to the compose checkout. `**docker-compose.yml` passes each key via `environment: VAR: ${VAR}`** so Portainer substitutes stack variables into the containers (required for Packer `PKR_VAR_*`). Optional `**env_file**` still loads a host `.env` when present.
 
 Optional: build `**Dockerfile.ansible`**, push to your registry, then switch the `ansible` service `image:` in `docker-compose.yml` as commented in the file.
 
@@ -63,7 +64,7 @@ Optional: build `**Dockerfile.ansible`**, push to your registry, then switch the
 
 ## 6. Run Packer (runbook Phase 7)
 
-From the `**iac-packer`** container console (or `docker exec`). Ensure **stack Environment** (or an optional host `.env`) defines all `PKR_VAR_*` and credentials.
+From the `**iac-packer`** container console (or `docker exec`). Ensure **stack Environment** (or an optional host `.env`) defines all `PKR_VAR_`* and credentials.
 
 ```bash
 cd /workspace/packer
@@ -96,8 +97,8 @@ Ensure `**win11_template_id**` matches the Packer-built template.
 ## 8. Ansible inventory and guest access (runbook Phases 10–11)
 
 - Set `**ansible_host**` in `ansible/inventory/hosts.yml` to the **live IP** of the cloned VM.
-- The playbook assumes a Windows admin account `**devadmin`** with the password in **`WINDOWS_ADMIN_PASSWORD`** (repo root `.env`); create that user on the guest (or adjust `**ansible_user`** / automation account) so WinRM matches what you configured after clone/sysprep.
-- From `**iac-ansible**` (Compose loads `.env` via `env_file`):
+- The playbook assumes a Windows admin account `**devadmin`** with the password in `**WINDOWS_ADMIN_PASSWORD`** (repo root `.env`); create that user on the guest (or adjust `**ansible_user`** / automation account) so WinRM matches what you configured after clone/sysprep.
+- From `**iac-ansible`** (Compose loads `.env` via `env_file`):
 
 ```bash
 cd /workspace/ansible
@@ -130,7 +131,7 @@ If you ever run Ansible directly on Windows and hit **“locale encoding must be
 
 ## 11. Later: new Windows ISO (runbook Phase 12)
 
-When you adopt a new ISO: update **`PKR_VAR_*`** (template id/name, `iso_file`) in `.env`, rebuild with Packer, update **`TF_VAR_win11_template_id`**, then `tofu plan` / `tofu apply`.
+When you adopt a new ISO: update `**PKR_VAR_*`** (template id/name, `iso_file`) in `.env`, rebuild with Packer, update `**TF_VAR_win11_template_id**`, then `tofu plan` / `tofu apply`.
 
 ---
 
