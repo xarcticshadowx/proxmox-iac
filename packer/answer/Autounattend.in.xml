@@ -76,9 +76,9 @@
             <DiskID>0</DiskID>
             <PartitionID>3</PartitionID>
           </InstallTo>
-          <!-- If your ISO only has install.esd, change Path to \sources\install.esd (same folder as on mounted ISO). -->
+          <!-- Render replaces __INSTALL_FILENAME__ (PKR_VAR_win11_install_filename). Full/VL ISOs often have install.wim on the CCCOMA DVD letter (e.g. F:); many MCT ISOs use install.esd — verify with diskpart / dir &lt;DVD&gt;:\sources\install.* -->
           <InstallFrom>
-            <Path>\sources\install.wim</Path>
+            <Path>\sources\__INSTALL_FILENAME__</Path>
             <MetaData wcm:action="add">
               <Key>/IMAGE/INDEX</Key>
               <Value>__PKR_WIM_INDEX__</Value>
