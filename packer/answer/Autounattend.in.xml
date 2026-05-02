@@ -81,7 +81,7 @@
             <Path>\sources\install.wim</Path>
             <MetaData wcm:action="add">
               <Key>/IMAGE/INDEX</Key>
-              <Value>6</Value>
+              <Value>__PKR_WIM_INDEX__</Value>
             </MetaData>
           </InstallFrom>
         </OSImage>
@@ -142,4 +142,3 @@
     </component>
   </settings>
 </unattend>
-

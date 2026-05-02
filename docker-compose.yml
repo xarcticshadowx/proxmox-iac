@@ -14,7 +14,12 @@ services:
     container_name: iac-packer
     working_dir: /workspace/packer
     entrypoint: ["/bin/sh", "-lc"]
-    command: ["sleep infinity"]
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        sh /workspace/packer/scripts/render-autounattend.sh
+        exec sleep infinity
     env_file:
       - path: .env
         required: false
@@ -40,6 +45,7 @@ services:
       PKR_VAR_iso_storage: ${PKR_VAR_iso_storage}
       PKR_VAR_bridge: ${PKR_VAR_bridge}
       PKR_VAR_winrm_username: ${PKR_VAR_winrm_username}
+      PKR_VAR_win11_install_wim_index: ${PKR_VAR_win11_install_wim_index:-6}
     networks:
       - iac
     restart: unless-stopped
