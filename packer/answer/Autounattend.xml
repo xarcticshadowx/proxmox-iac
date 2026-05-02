@@ -15,10 +15,18 @@
       <UserLocale>en-US</UserLocale>
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <!-- Setup reboot-loops if TPM/RAM/CPU/SB checks fail before install (common on bare VMs). LabConfig is the MS-documented lab bypass; vTPM in win11.pkr.hcl should satisfy TPM when possible. -->
+      <!--
+        Proxmox uses virtio-scsi-single; WinPE has no vioscsi driver, so "Where do you want to install Windows?"
+        shows no disks until vioscsi.inf is loaded from the virtio-win ISO (ide0). This must run before DiskConfiguration.
+      -->
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
+          <Description>Load VirtIO SCSI (vioscsi) in WinPE from virtio-win.iso</Description>
+          <Path>powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "&amp; { $roots = 'D','E','F','G','H','I','J','K','L','M','N','O','P' | ForEach-Object { $_ + ':' }; $inf = Get-ChildItem -Path $roots -Filter vioscsi.inf -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -like '*\vioscsi\*\amd64' } | Select-Object -First 1; if (-not $inf) { throw 'vioscsi.inf not found (attach virtio-win.iso / check virtio-win version paths w11, 2k22, 2k19).' }; &amp; drvload $inf.FullName }"</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>2</Order>
           <Description>LabConfig bypass for Win11 hardware checks (windows PE)</Description>
           <Path>cmd.exe /c reg.exe add HKLM\SYSTEM\Setup\LabConfig /v BypassTPMCheck /t REG_DWORD /d 1 /f &amp; reg.exe add HKLM\SYSTEM\Setup\LabConfig /v BypassSecureBootCheck /t REG_DWORD /d 1 /f &amp; reg.exe add HKLM\SYSTEM\Setup\LabConfig /v BypassRAMCheck /t REG_DWORD /d 1 /f &amp; reg.exe add HKLM\SYSTEM\Setup\LabConfig /v BypassCPUCheck /t REG_DWORD /d 1 /f</Path>
         </RunSynchronousCommand>

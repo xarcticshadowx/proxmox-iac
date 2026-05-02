@@ -52,10 +52,10 @@ source "proxmox-iso" "win11" {
     unmount  = true
   }
 
-  # Disk before ISO: empty scsi0 is skipped on first boot → Win11 ISO (ide2). After setup writes
-  # EFI to the disk, reboots boot Windows from scsi0 instead of re-entering setup from the ISO.
-  # order=ide2;scsi0 first causes UEFI to prefer the ISO on every reboot → classic Windows setup loop.
-  boot = "order=scsi0;ide2;net0"
+  # Win11 install ISO on ide2 first (matches typical qm config during setup). scsi0 then net0 follow.
+  # With virtio vioscsi loaded in Autounattend (windowsPE), disk enumeration works; Packer still unmounts
+  # boot_iso after install — if setup reboot-loops into the ISO, switch back to scsi0-before-ide2.
+  boot = "order=ide2;scsi0;net0"
 
   # If ide2 is already first in firmware, only "Press any key…" remains — one Enter.
   # If you still see the device picker with HARDDISK highlighted, add four "<down>" before "<enter>".
