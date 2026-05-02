@@ -1,6 +1,7 @@
 # Run `packer/scripts/render-autounattend.ps1` (or .sh) before `packer validate|build` so
-# `answer/Autounattend.xml` exists and WIM index matches your ISO. The iac-packer container runs
-# render on start (see docker-compose). Set PKR_VAR_win11_install_wim_index if index 6 is wrong
+# `answer/Autounattend.xml` exists: WIM index from PKR_VAR_win11_install_wim_index, local account
+# password from WINRM_PASSWORD (must match winrm_password). The iac-packer container runs render
+# on start (see docker-compose). Set PKR_VAR_win11_install_wim_index if index 6 is wrong
 # (dism /Get-WimInfo on sources\install.wim or install.esd).
 packer {
   required_plugins {
