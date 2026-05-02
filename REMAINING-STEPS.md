@@ -15,7 +15,7 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 
 | Template      | Create locally |
 | ------------- | -------------- |
-| `.env.example` | Copy to **`.env`** in the **repo root** (same directory as `docker-compose.yml`). Fill in every `TF_VAR_*`, `PKR_VAR_*`, `WINRM_PASSWORD`, and `WINDOWS_ADMIN_PASSWORD` per comments in `.env.example`. With Portainer Git stack, omit `IAC_REPO_PATH` and `SSH_KEY_PATH` when applicable (see §5) — and either create `.env` on the host next to the stack or paste the same keys into the Portainer stack environment. |
+| `.env.example` | Use every key in **Portainer → Stack → Environment** (best for Git stacks). Optionally also maintain a **`.env`** on the Docker host beside the compose file. Fill in all `TF_VAR_*`, `PKR_VAR_*`, `WINRM_PASSWORD`, and `WINDOWS_ADMIN_PASSWORD`. Omit `IAC_REPO_PATH` and `SSH_KEY_PATH` when applicable (see §5). |
 
 
 `.gitignore` already excludes `.env` and `*.pkrvars.hcl` (legacy local files only).
@@ -55,7 +55,7 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 - `**IAC_REPO_PATH`** — only if the repo lives at a **fixed path** you manage yourself (not Portainer’s checkout), e.g. `/opt/stacks/proxmox-iac`.
 - `**SSH_KEY_PATH`** — only if the OpenTofu provider must use a **host SSH private key** file (uncommon when using API tokens).
 
-Configure everything in **`.env`** per `.env.example` (Compose uses **`env_file: .env`**).
+Configure every variable from `.env.example` in **Portainer → Stack → Environment** (recommended for Git stacks), and/or create a **`.env` file on the Docker host** next to the compose checkout. Compose uses **`env_file` with `required: false`**, so deploy works without a physical `.env`; stack Environment still supplies values to containers.
 
 Optional: build `**Dockerfile.ansible`**, push to your registry, then switch the `ansible` service `image:` in `docker-compose.yml` as commented in the file.
 
@@ -63,7 +63,7 @@ Optional: build `**Dockerfile.ansible`**, push to your registry, then switch the
 
 ## 6. Run Packer (runbook Phase 7)
 
-From the `**iac-packer`** container console (or `docker exec`). Ensure the container was started with **`env_file: .env`** so all `PKR_VAR_*` and credentials are present.
+From the `**iac-packer`** container console (or `docker exec`). Ensure **stack Environment** (or an optional host `.env`) defines all `PKR_VAR_*` and credentials.
 
 ```bash
 cd /workspace/packer

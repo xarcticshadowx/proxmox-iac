@@ -1,6 +1,8 @@
-# proxmox-win11-iac Portainer stack — configuration lives only in repo root `.env` (see `.env.example`).
-# Each service uses env_file: .env (create that file on the host; it is gitignored).
-# Portainer: paste the same keys into stack Environment if you cannot place a physical `.env` file.
+# proxmox-win11-iac Portainer stack — vars live in repo `.env.example`; runtime values via optional `.env`
+# file on the host OR Portainer stack Environment (Git stacks never ship `.env`; UI upload does not
+# create a path Compose can open — use Stack Environment for every key, or optional file below).
+#
+# env_file uses required: false so deploy succeeds without a physical `.env` on disk (Compose spec 3.34+).
 #
 # Workspace bind: ${IAC_REPO_PATH:-.} → /workspace (Portainer Git stack: omit IAC_REPO_PATH).
 # OpenTofu SSH optional: SSH_KEY_PATH for host private key (default mounts /dev/null as id_rsa).
@@ -12,7 +14,9 @@ services:
     working_dir: /workspace/packer
     entrypoint: ["/bin/sh", "-lc"]
     command: ["sleep infinity"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - packer_cache:/root/.cache/packer
@@ -29,7 +33,9 @@ services:
     working_dir: /workspace/tofu
     entrypoint: ["/bin/sh", "-lc"]
     command: ["sleep infinity"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - tofu_cache:/root/.terraform.d
@@ -50,7 +56,9 @@ services:
         python3 -m pip install --user --break-system-packages pywinrm pypsrp requests-credssp || true;
         ansible-galaxy collection install ansible.windows community.windows || true;
         sleep infinity
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - ansible_home:/root

@@ -101,7 +101,7 @@ crash.log
 *.pkrvars.hcl
 ```
 
-`*.pkrvars.hcl` remains ignored so old local Packer var files are never committed by mistake. Configuration lives in the repo root `.env` only.
+`*.pkrvars.hcl` remains ignored so old local Packer var files are never committed by mistake. Configuration values are listed in `.env.example`; at runtime they come from **Portainer stack Environment** and/or an optional **`.env` file on the Docker host**.
 
 ## Phase 2: Create the Portainer stack
 
@@ -112,12 +112,12 @@ In Portainer:
 3. Name it `proxmox-win11-iac`.
 4. Choose either **Web editor** or **Git repository**.
 5. If using Git, point Portainer at the repo containing this Compose file.
-6. **Environment:** either place a `.env` file **on the Docker host** next to where the stack stores the compose file (same keys as `.env.example`), **or** paste the equivalent variables into the stack **Environment** / **Env file** UI so every key from `.env.example` is defined for the stack.
+6. **Environment:** for **Git-based stacks**, paste every variable from `.env.example` into the stack **Environment** section (key/value). Uploading a dotenv in the UI **does not** create `.../proxmox-iac/.env` on the server filesystem; Compose resolves `env_file` paths on the host. Use **Environment**, or SSH to the host and create `.env` beside the compose checkout if you want a file.
 7. Deploy the stack.
 
 ### Compose file
 
-Use this as `docker-compose.yml` (or the copy in the repository root). Each service loads the repo root `.env` via `env_file`; you do not duplicate variables in the YAML.
+Use this as `docker-compose.yml` (or the copy in the repository root). Each service uses **`env_file` with `required: false`** so deploy works when no `.env` file exists; **Portainer stack Environment** still injects variables into containers.
 
 ```yaml
 services:
@@ -127,7 +127,9 @@ services:
     working_dir: /workspace/packer
     entrypoint: ["/bin/sh", "-lc"]
     command: ["sleep infinity"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - packer_cache:/root/.cache/packer
@@ -144,7 +146,9 @@ services:
     working_dir: /workspace/tofu
     entrypoint: ["/bin/sh", "-lc"]
     command: ["sleep infinity"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - tofu_cache:/root/.terraform.d
@@ -163,7 +167,9 @@ services:
         python3 -m pip install --user --break-system-packages pywinrm pypsrp requests-credssp || true;
         ansible-galaxy collection install ansible.windows community.windows || true;
         sleep infinity
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - ansible_home:/root
@@ -226,7 +232,7 @@ image: registry.example.internal/ansible-windows:latest
 
 ## Phase 3: Configure stack environment variables
 
-Maintain **one** file: the repo root `.env` (copy from `.env.example`). `docker-compose.yml` uses `env_file: .env` for each service; do not create separate `terraform.tfvars` or `*.pkrvars.hcl`.
+Maintain **one** list of variables (copy from `.env.example`): put them in **Portainer stack Environment** and/or in a host `.env` file beside the compose checkout. `docker-compose.yml` uses optional `env_file` (`required: false`) plus stack env; do not create separate `terraform.tfvars` or `*.pkrvars.hcl`.
 
 For a **stack deployed from Git**, you normally **omit** `IAC_REPO_PATH` and `SSH_KEY_PATH` (workspace bind uses the checkout path; API-token auth for Proxmox). Portainer does not commit `.env`; create it on the Docker host beside the stack or paste the same keys into the stack environment UI.
 
