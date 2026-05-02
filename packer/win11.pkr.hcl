@@ -52,8 +52,10 @@ source "proxmox-iso" "win11" {
     unmount  = true
   }
 
-  # Prefer Windows boot_iso before empty disk + NIC PXE. Match IDE indexes with `qm config`.
-  boot = "order=ide2;scsi0;net0"
+  # Disk before ISO: empty scsi0 is skipped on first boot → Win11 ISO (ide2). After setup writes
+  # EFI to the disk, reboots boot Windows from scsi0 instead of re-entering setup from the ISO.
+  # order=ide2;scsi0 first causes UEFI to prefer the ISO on every reboot → classic Windows setup loop.
+  boot = "order=scsi0;ide2;net0"
 
   # If ide2 is already first in firmware, only "Press any key…" remains — one Enter.
   # If you still see the device picker with HARDDISK highlighted, add four "<down>" before "<enter>".
@@ -70,10 +72,14 @@ source "proxmox-iso" "win11" {
   machine    = "q35"
   bios       = "ovmf"
 
+  # Match production Win11 VMs (e.g. qm: cpu x86-64-v2-AES); avoids kvm64 default.
+  cpu_type = "x86-64-v2-AES"
+
   # Required for OVMF: persistent EFI vars on cluster storage (avoids "no efidisk configured" / temporary efivars).
   efi_config {
-    efi_storage_pool = var.vm_storage
-    efi_type         = "4m"
+    efi_storage_pool  = var.vm_storage
+    efi_type          = "4m"
+    pre_enrolled_keys = true
   }
 
   # Win11 setup expects TPM 2.0 (matches tofu tpm_state on clones); avoids PE/setup reboot loops.
@@ -92,6 +98,8 @@ source "proxmox-iso" "win11" {
     storage_pool = var.vm_storage
     format       = "raw"
     cache_mode   = "writeback"
+    io_thread    = true
+    discard      = true
   }
 
   network_adapters {
