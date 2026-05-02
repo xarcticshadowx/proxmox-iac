@@ -57,6 +57,12 @@ source "proxmox-iso" "win11" {
   machine    = "q35"
   bios       = "ovmf"
 
+  # Required for OVMF: persistent EFI vars on cluster storage (avoids "no efidisk configured" / temporary efivars).
+  efi_config {
+    efi_storage_pool = var.vm_storage
+    efi_type         = "4m"
+  }
+
   cores           = 4
   memory          = 8192
   scsi_controller = "virtio-scsi-single"
