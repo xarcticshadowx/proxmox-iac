@@ -52,11 +52,16 @@ source "proxmox-iso" "win11" {
     unmount  = true
   }
 
-  # UEFI/BIOS shows "Press any key to boot from CD/DVD..."; without this Packer logs
-  # "No boot command given, skipping" and setup never starts (WinRM/agent errors follow).
-  boot_wait = "8s"
+  # Prefer Windows boot_iso before empty disk + NIC PXE. Match IDE indexes with `qm config`.
+  boot = "order=ide2;scsi0;net0"
+
+  # If ide2 is already first in firmware, only "Press any key…" remains — one Enter.
+  # If you still see the device picker with HARDDISK highlighted, add four "<down>" before "<enter>".
+  boot_wait = "10s"
   boot_command = [
-    "<wait15s>",
+    "<wait18s>",
+    "<enter>",
+    "<wait8s>",
     "<enter>",
   ]
 
@@ -69,6 +74,12 @@ source "proxmox-iso" "win11" {
   efi_config {
     efi_storage_pool = var.vm_storage
     efi_type         = "4m"
+  }
+
+  # Win11 setup expects TPM 2.0 (matches tofu tpm_state on clones); avoids PE/setup reboot loops.
+  tpm_config {
+    tpm_storage_pool = var.vm_storage
+    tpm_version      = "v2.0"
   }
 
   cores           = 4
