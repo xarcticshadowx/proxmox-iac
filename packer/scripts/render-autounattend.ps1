@@ -12,6 +12,7 @@ $installFile = $env:PKR_VAR_win11_install_filename
 if ([string]::IsNullOrWhiteSpace($installFile)) { $installFile = 'install.wim' }
 $imgName = $env:PKR_VAR_win11_install_image_name
 if (-not [string]::IsNullOrWhiteSpace($imgName)) {
+    Write-Warning 'PKR_VAR_win11_install_image_name is set: must match dism /Get-WimInfo Name exactly. A typo causes Setup to fail. If index 6 is already correct for your ISO, remove PKR_VAR_win11_install_image_name and use PKR_VAR_win11_install_wim_index only.'
     $metaKey = '/IMAGE/NAME'
     $metaVal = [System.Security.SecurityElement]::Escape($imgName.Trim())
 } else {
