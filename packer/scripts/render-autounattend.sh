@@ -16,6 +16,7 @@ if [ -n "${PKR_VAR_win11_install_image_name:-}" ]; then
   MK="/IMAGE/NAME"
   MV="$PKR_VAR_win11_install_image_name"
   META_MODE="name"
+  echo "WARN: PKR_VAR_win11_install_image_name is set — must match dism /Get-WimInfo Name exactly or Setup fails. If index ${IDX} is correct, unset PKR_VAR_win11_install_image_name." >&2
 fi
 
 # awk: gsub replacement treats & specially; escape \ and & in the password and meta value
@@ -49,7 +50,8 @@ fi
 REPO="$(cd "$ROOT/.." && pwd)"
 LOG="$REPO/debug-d29db6.log"
 OUT="$ROOT/answer/Autounattend.xml"
-PATH_LINE=$(grep -E 'install\.(wim|esd)' "$OUT" | head -1 | sed -n 's/.*<Path>//;s|</Path>.*||p' | tr -d '\r')
+# Match only <Path> lines — comments above InstallFrom also mention install.wim and would poison grep order.
+PATH_LINE=$(grep -E '<Path>.*install\.(wim|esd)</Path>' "$OUT" | head -1 | sed -n 's/.*<Path>//;s|</Path>.*||p' | tr -d '\r')
 LEAK=0
 grep -q '__WIM_META_KEY__\|__WIM_META_VALUE__\|__WINRM_PASSWORD__\|__INSTALL_FILENAME__' "$OUT" 2>/dev/null && LEAK=1 || true
 KIND="other"
