@@ -108,10 +108,9 @@ source "proxmox-iso" "win11" {
 build {
   sources = ["source.proxmox-iso.win11"]
 
+  # VirtIO + qemu-ga run from bootstrap-winrm.ps1 at first logon (required before WinRM connect).
   provisioner "powershell" {
     scripts = [
-      "scripts/install-virtio.ps1",
-      "scripts/install-qemu-agent.ps1",
       "scripts/baseline-windows.ps1"
     ]
   }
