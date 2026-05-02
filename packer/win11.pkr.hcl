@@ -47,9 +47,9 @@ source "proxmox-iso" "win11" {
   vm_name       = var.template_name
   template_name = var.template_name
 
-  # Pin IDE slots so OVMF's boot menu order matches intent: Win11 full ISO must not lose to the tiny
-  # cidata ISO (Autounattend-only). Default plugin mapping put boot_iso on ide2 after ide0/ide1 ISOs,
-  # so "first" DVD in the firmware picker was often cidata → 0x80070002 (sources not found).
+  # Win11 boot ISO is the ONLY ide CD-ROM (ide0). virtio-win + cidata use SATA so OVMF's "DVD-ROM
+  # QMxxxxx" list is not three IDE drives in plugin default order (QMxxxx numbers are QEMU-enumerated,
+  # not ide slot numbers). First blue-menu entry was often not the full Windows media before this split.
   boot_iso {
     iso_file = var.iso_file
     unmount  = true
@@ -57,7 +57,7 @@ source "proxmox-iso" "win11" {
     index    = 0
   }
 
-  boot = "order=ide0;scsi0;net0"
+  boot = "order=ide0;sata0;sata1;scsi0;net0"
 
   # One Enter usually clears "Press any key to boot from CD/DVD…" on ide0 (Win11). Add extra "<enter>"
   # only if your firmware still stops at that prompt after the first key.
@@ -110,8 +110,8 @@ source "proxmox-iso" "win11" {
   additional_iso_files {
     iso_file = var.virtio_iso_file
     unmount  = true
-    type     = "ide"
-    index    = 1
+    type     = "sata"
+    index    = 0
   }
 
   additional_iso_files {
@@ -126,8 +126,8 @@ source "proxmox-iso" "win11" {
     ]
     cd_label = "cidata"
     unmount  = true
-    type     = "ide"
-    index    = 2
+    type     = "sata"
+    index    = 1
   }
 
   communicator   = "winrm"
