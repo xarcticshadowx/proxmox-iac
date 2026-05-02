@@ -1,0 +1,27 @@
+# Build: docker build -f Dockerfile.ansible -t registry.example.internal/ansible-windows:latest .
+# Push:  docker push registry.example.internal/ansible-windows:latest
+# In docker-compose.yml set ansible service image to that tag and remove the pip/galaxy command override.
+
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    ssh \
+    krb5-user \
+    gcc \
+    python3-dev \
+    libkrb5-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir \
+    ansible \
+    pywinrm \
+    pypsrp \
+    requests-credssp
+
+RUN ansible-galaxy collection install \
+    ansible.windows \
+    community.windows
+
+WORKDIR /workspace

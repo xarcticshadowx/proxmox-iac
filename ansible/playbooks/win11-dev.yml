@@ -1,0 +1,35 @@
+---
+- name: Configure Windows 11 dev workstation
+  hosts: windows
+  gather_facts: false
+
+  tasks:
+    - name: Ensure RDP is enabled
+      ansible.windows.win_regedit:
+        path: HKLM:\System\CurrentControlSet\Control\Terminal Server
+        name: fDenyTSConnections
+        data: 0
+        type: dword
+
+    - name: Ensure RDP firewall rule is enabled
+      community.windows.win_firewall_rule:
+        group: Remote Desktop
+        enabled: true
+
+    - name: Disable hibernation
+      ansible.windows.win_command: powercfg /hibernate off
+
+    - name: Install PowerShell 7
+      ansible.windows.win_powershell:
+        script: |
+          winget install --id Microsoft.PowerShell --silent --accept-source-agreements --accept-package-agreements
+
+    - name: Install Git
+      ansible.windows.win_powershell:
+        script: |
+          winget install --id Git.Git --silent --accept-source-agreements --accept-package-agreements
+
+    - name: Install VS Code
+      ansible.windows.win_powershell:
+        script: |
+          winget install --id Microsoft.VisualStudioCode --silent --accept-source-agreements --accept-package-agreements

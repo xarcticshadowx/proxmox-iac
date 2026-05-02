@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars (gitignored via *.auto.tfvars pattern — use terraform.tfvars locally).
+# Stack env vars TF_VAR_* match these names without the TF_VAR_ prefix.
+
+proxmox_endpoint    = "https://pve01.example.internal:8006/"
+proxmox_api_token   = "terraform@pve!iac=REPLACE_ME"
+proxmox_node        = "pve01"
+datastore           = "local-lvm"
+win11_template_id   = 9025
+vm_id               = 1101
+vm_name             = "win11-dev-01"
+bridge              = "vmbr0"

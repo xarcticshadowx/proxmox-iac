@@ -1,0 +1,76 @@
+# proxmox-win11-iac Portainer stack (runbook Phase 2).
+# Optional: build Dockerfile.ansible and set ansible image to your registry, e.g.:
+#   docker build -f Dockerfile.ansible -t registry.example.internal/ansible-windows:latest .
+#   docker push registry.example.internal/ansible-windows:latest
+# Then replace the ansible service image below with that tag.
+
+services:
+  packer:
+    image: hashicorp/packer:latest
+    container_name: iac-packer
+    working_dir: /workspace/packer
+    entrypoint: ["/bin/sh", "-lc"]
+    command: ["sleep infinity"]
+    volumes:
+      - ${IAC_REPO_PATH:-.}:/workspace
+      - packer_cache:/root/.cache/packer
+      - packer_plugins:/root/.config/packer
+    environment:
+      PACKER_LOG: "1"
+      PROXMOX_URL: ${PROXMOX_URL}
+      PROXMOX_USERNAME: ${PROXMOX_USERNAME}
+      PROXMOX_TOKEN: ${PROXMOX_TOKEN}
+    networks:
+      - iac
+    restart: unless-stopped
+
+  tofu:
+    image: ghcr.io/opentofu/opentofu:latest
+    container_name: iac-tofu
+    working_dir: /workspace/tofu
+    entrypoint: ["/bin/sh", "-lc"]
+    command: ["sleep infinity"]
+    volumes:
+      - ${IAC_REPO_PATH:-.}:/workspace
+      - tofu_cache:/root/.terraform.d
+      - ${SSH_KEY_PATH:-/dev/null}:/root/.ssh/id_rsa:ro
+    environment:
+      TF_VAR_proxmox_endpoint: ${TF_VAR_proxmox_endpoint}
+      TF_VAR_proxmox_api_token: ${TF_VAR_proxmox_api_token}
+      TF_VAR_proxmox_node: ${TF_VAR_proxmox_node}
+      TF_VAR_datastore: ${TF_VAR_datastore}
+      TF_VAR_win11_template_id: ${TF_VAR_win11_template_id}
+      TF_VAR_vm_id: ${TF_VAR_vm_id}
+      TF_VAR_vm_name: ${TF_VAR_vm_name}
+      TF_VAR_bridge: ${TF_VAR_bridge}
+    networks:
+      - iac
+    restart: unless-stopped
+
+  ansible:
+    # Default: cytopia/ansible with pip/galaxy on start. Swap for custom image:
+    # image: registry.example.internal/ansible-windows:latest
+    image: cytopia/ansible:latest
+    container_name: iac-ansible
+    working_dir: /workspace/ansible
+    entrypoint: ["/bin/sh", "-lc"]
+    command:
+      - >
+        python3 -m pip install --user --break-system-packages pywinrm pypsrp requests-credssp || true;
+        ansible-galaxy collection install ansible.windows community.windows || true;
+        sleep infinity
+    volumes:
+      - ${IAC_REPO_PATH:-.}:/workspace
+      - ansible_home:/root
+    networks:
+      - iac
+    restart: unless-stopped
+
+networks:
+  iac:
+
+volumes:
+  packer_cache:
+  packer_plugins:
+  tofu_cache:
+  ansible_home:

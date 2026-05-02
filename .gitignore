@@ -1,0 +1,13 @@
+.env
+*.auto.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+*.log
+*.pkrvars.hcl
+vault.yml
+
+# Local tooling / experiments
+.venv-ansible-check/

@@ -1,0 +1,18 @@
+# Copy to vars-25h2.pkrvars.hcl (gitignored) and replace secrets.
+proxmox_url      = "https://pve01.example.internal:8006/api2/json"
+proxmox_node     = "pve01"
+proxmox_username = "terraform@pve"
+proxmox_token    = "terraform@pve!iac=REPLACE_ME"
+
+template_vm_id = 9025
+template_name  = "tpl-win11-25h2-dev"
+
+iso_file        = "local:iso/Win11_25H2_English_x64.iso"
+virtio_iso_file = "local:iso/virtio-win.iso"
+
+vm_storage  = "local-lvm"
+iso_storage = "local"
+bridge      = "vmbr0"
+
+winrm_username = "packer"
+winrm_password = "Use-A-Long-Temporary-Password"
