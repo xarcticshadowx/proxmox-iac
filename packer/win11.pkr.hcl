@@ -1,3 +1,7 @@
+# Run `packer/scripts/render-autounattend.ps1` (or .sh) before `packer validate|build` so
+# `answer/Autounattend.xml` exists and WIM index matches your ISO. The iac-packer container runs
+# render on start (see docker-compose). Set PKR_VAR_win11_install_wim_index if index 6 is wrong
+# (dism /Get-WimInfo on sources\install.wim or install.esd).
 packer {
   required_plugins {
     proxmox = {
@@ -69,7 +73,8 @@ source "proxmox-iso" "win11" {
 
   qemu_agent = true
   os         = "win11"
-  machine    = "q35"
+  # Align with production qm VMs (e.g. pc-q35-10.1); plain "q35" uses a different QEMU profile.
+  machine    = "pc-q35-10.1"
   bios       = "ovmf"
 
   # Match production Win11 VMs (e.g. qm: cpu x86-64-v2-AES); avoids kvm64 default.
