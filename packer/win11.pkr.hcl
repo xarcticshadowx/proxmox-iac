@@ -11,10 +11,13 @@ variable "proxmox_url" { type = string }
 variable "proxmox_node" { type = string }
 variable "proxmox_username" { type = string }
 variable "proxmox_token" {
-  type        = string
-  sensitive   = true
-  description = "Defaults from TF_VAR_proxmox_api_token in the repo root .env (shared with OpenTofu)."
-  default     = env("TF_VAR_proxmox_api_token")
+  type      = string
+  sensitive = true
+  description = <<-EOT
+    Full Proxmox API token string (user@realm!tokenid=secret).
+    Prefers TF_VAR_proxmox_api_token (same as OpenTofu); if empty, uses PKR_VAR_proxmox_token.
+    EOT
+  default = env("TF_VAR_proxmox_api_token") != "" ? env("TF_VAR_proxmox_api_token") : env("PKR_VAR_proxmox_token")
 }
 variable "template_vm_id" { type = number }
 variable "template_name" { type = string }

@@ -25,6 +25,7 @@ services:
     environment:
       PACKER_LOG: "1"
       TF_VAR_proxmox_api_token: ${TF_VAR_proxmox_api_token}
+      PKR_VAR_proxmox_token: ${PKR_VAR_proxmox_token:-}
       WINRM_PASSWORD: ${WINRM_PASSWORD}
       PKR_VAR_proxmox_url: ${PKR_VAR_proxmox_url}
       PKR_VAR_proxmox_node: ${PKR_VAR_proxmox_node}
