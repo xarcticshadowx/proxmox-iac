@@ -1,21 +1,9 @@
-# proxmox-win11-iac Portainer stack (runbook Phase 2).
-# Optional: build Dockerfile.ansible and set ansible image to your registry, e.g.:
-#   docker build -f Dockerfile.ansible -t registry.example.internal/ansible-windows:latest .
-#   docker push registry.example.internal/ansible-windows:latest
-# Then replace the ansible service image below with that tag.
+# proxmox-win11-iac Portainer stack — configuration lives only in repo root `.env` (see `.env.example`).
+# Each service uses env_file: .env (create that file on the host; it is gitignored).
+# Portainer: paste the same keys into stack Environment if you cannot place a physical `.env` file.
 #
-# --- /workspace (bind mount only) ---
-# Host directory → /workspace: ${IAC_REPO_PATH:-.}  (packer/, tofu/, ansible/)
-# Portainer "stack from Git": omit IAC_REPO_PATH so `.` is the Git checkout (repo root).
-# Manual clone elsewhere: set IAC_REPO_PATH to that absolute path on the Docker host.
-#
-# --- Named Docker volumes (everything except workspace) ---
-# packer_cache, packer_plugins — Packer downloads/plugins persist across container restarts.
-# tofu_cache — OpenTofu provider/plugin cache (~/.terraform.d).
-# ansible_home — persistent /root in iac-ansible (pip --user, galaxy metadata).
-#
-# OpenTofu SSH (optional): set SSH_KEY_PATH to a host key file, or omit for API-token-only
-# (default mounts /dev/null at /root/.ssh/id_rsa).
+# Workspace bind: ${IAC_REPO_PATH:-.} → /workspace (Portainer Git stack: omit IAC_REPO_PATH).
+# OpenTofu SSH optional: SSH_KEY_PATH for host private key (default mounts /dev/null as id_rsa).
 
 services:
   packer:
@@ -24,15 +12,13 @@ services:
     working_dir: /workspace/packer
     entrypoint: ["/bin/sh", "-lc"]
     command: ["sleep infinity"]
+    env_file: .env
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - packer_cache:/root/.cache/packer
       - packer_plugins:/root/.config/packer
     environment:
       PACKER_LOG: "1"
-      PROXMOX_URL: ${PROXMOX_URL}
-      PROXMOX_USERNAME: ${PROXMOX_USERNAME}
-      PROXMOX_TOKEN: ${PROXMOX_TOKEN}
     networks:
       - iac
     restart: unless-stopped
@@ -43,19 +29,11 @@ services:
     working_dir: /workspace/tofu
     entrypoint: ["/bin/sh", "-lc"]
     command: ["sleep infinity"]
+    env_file: .env
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - tofu_cache:/root/.terraform.d
       - ${SSH_KEY_PATH:-/dev/null}:/root/.ssh/id_rsa:ro
-    environment:
-      TF_VAR_proxmox_endpoint: ${TF_VAR_proxmox_endpoint}
-      TF_VAR_proxmox_api_token: ${TF_VAR_proxmox_api_token}
-      TF_VAR_proxmox_node: ${TF_VAR_proxmox_node}
-      TF_VAR_datastore: ${TF_VAR_datastore}
-      TF_VAR_win11_template_id: ${TF_VAR_win11_template_id}
-      TF_VAR_vm_id: ${TF_VAR_vm_id}
-      TF_VAR_vm_name: ${TF_VAR_vm_name}
-      TF_VAR_bridge: ${TF_VAR_bridge}
     networks:
       - iac
     restart: unless-stopped
@@ -72,6 +50,7 @@ services:
         python3 -m pip install --user --break-system-packages pywinrm pypsrp requests-credssp || true;
         ansible-galaxy collection install ansible.windows community.windows || true;
         sleep infinity
+    env_file: .env
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - ansible_home:/root

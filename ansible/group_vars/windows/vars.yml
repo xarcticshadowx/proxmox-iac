@@ -1,5 +1,5 @@
 ansible_user: devadmin
-ansible_password: "{{ vault_windows_admin_password }}"
+ansible_password: "{{ lookup('env', 'WINDOWS_ADMIN_PASSWORD') | mandatory }}"
 ansible_connection: winrm
 ansible_winrm_transport: basic
 ansible_winrm_server_cert_validation: ignore

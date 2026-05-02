@@ -61,10 +61,10 @@ Recommended repo layout:
 ```text
 proxmox-win11-dev-iac/
 ├── docker-compose.yml
+├── .env
 ├── .env.example
 ├── packer/
 │   ├── win11.pkr.hcl
-│   ├── vars-25h2.pkrvars.hcl
 │   ├── answer/
 │   │   └── Autounattend.xml
 │   └── scripts/
@@ -76,15 +76,13 @@ proxmox-win11-dev-iac/
 ├── tofu/
 │   ├── providers.tf
 │   ├── variables.tf
-│   ├── win11-dev.tf
-│   └── terraform.tfvars.example
+│   └── win11-dev.tf
 └── ansible/
     ├── inventory/
     │   └── hosts.yml
     ├── group_vars/
     │   └── windows/
-    │       ├── vars.yml
-    │       └── vault.yml
+    │       └── vars.yml
     └── playbooks/
         └── win11-dev.yml
 ```
@@ -101,10 +99,9 @@ Add a `.gitignore`:
 crash.log
 *.log
 *.pkrvars.hcl
-vault.yml
 ```
 
-If you want to commit nonsecret Packer variable files, remove `*.pkrvars.hcl` from `.gitignore` and make sure those files do not contain API tokens, local admin passwords, product keys, or other secrets.
+`*.pkrvars.hcl` remains ignored so old local Packer var files are never committed by mistake. Configuration lives in the repo root `.env` only.
 
 ## Phase 2: Create the Portainer stack
 
@@ -115,12 +112,12 @@ In Portainer:
 3. Name it `proxmox-win11-iac`.
 4. Choose either **Web editor** or **Git repository**.
 5. If using Git, point Portainer at the repo containing this Compose file.
-6. Add stack environment variables from the `.env` section below.
+6. **Environment:** either place a `.env` file **on the Docker host** next to where the stack stores the compose file (same keys as `.env.example`), **or** paste the equivalent variables into the stack **Environment** / **Env file** UI so every key from `.env.example` is defined for the stack.
 7. Deploy the stack.
 
 ### Compose file
 
-Use this as `docker-compose.yml` (or the copy in the repository root):
+Use this as `docker-compose.yml` (or the copy in the repository root). Each service loads the repo root `.env` via `env_file`; you do not duplicate variables in the YAML.
 
 ```yaml
 services:
@@ -130,15 +127,13 @@ services:
     working_dir: /workspace/packer
     entrypoint: ["/bin/sh", "-lc"]
     command: ["sleep infinity"]
+    env_file: .env
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - packer_cache:/root/.cache/packer
       - packer_plugins:/root/.config/packer
     environment:
       PACKER_LOG: "1"
-      PROXMOX_URL: ${PROXMOX_URL}
-      PROXMOX_USERNAME: ${PROXMOX_USERNAME}
-      PROXMOX_TOKEN: ${PROXMOX_TOKEN}
     networks:
       - iac
     restart: unless-stopped
@@ -149,19 +144,11 @@ services:
     working_dir: /workspace/tofu
     entrypoint: ["/bin/sh", "-lc"]
     command: ["sleep infinity"]
+    env_file: .env
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - tofu_cache:/root/.terraform.d
       - ${SSH_KEY_PATH:-/dev/null}:/root/.ssh/id_rsa:ro
-    environment:
-      TF_VAR_proxmox_endpoint: ${TF_VAR_proxmox_endpoint}
-      TF_VAR_proxmox_api_token: ${TF_VAR_proxmox_api_token}
-      TF_VAR_proxmox_node: ${TF_VAR_proxmox_node}
-      TF_VAR_datastore: ${TF_VAR_datastore}
-      TF_VAR_win11_template_id: ${TF_VAR_win11_template_id}
-      TF_VAR_vm_id: ${TF_VAR_vm_id}
-      TF_VAR_vm_name: ${TF_VAR_vm_name}
-      TF_VAR_bridge: ${TF_VAR_bridge}
     networks:
       - iac
     restart: unless-stopped
@@ -176,6 +163,7 @@ services:
         python3 -m pip install --user --break-system-packages pywinrm pypsrp requests-credssp || true;
         ansible-galaxy collection install ansible.windows community.windows || true;
         sleep infinity
+    env_file: .env
     volumes:
       - ${IAC_REPO_PATH:-.}:/workspace
       - ansible_home:/root
@@ -238,15 +226,15 @@ image: registry.example.internal/ansible-windows:latest
 
 ## Phase 3: Configure stack environment variables
 
-In Portainer, add these environment variables to the stack. Use your actual values.
+Maintain **one** file: the repo root `.env` (copy from `.env.example`). `docker-compose.yml` uses `env_file: .env` for each service; do not create separate `terraform.tfvars` or `*.pkrvars.hcl`.
 
-For a **stack deployed from Git**, you normally **omit** `IAC_REPO_PATH` and `SSH_KEY_PATH` (workspace bind uses the checkout path; API-token auth for Proxmox). Add the optional lines only for a manual repo path or OpenTofu SSH key — see `.env.example`.
+For a **stack deployed from Git**, you normally **omit** `IAC_REPO_PATH` and `SSH_KEY_PATH` (workspace bind uses the checkout path; API-token auth for Proxmox). Portainer does not commit `.env`; create it on the Docker host beside the stack or paste the same keys into the stack environment UI.
+
+OpenTofu uses `**TF_VAR_*`**. Packer reads `**PKR_VAR_<name>**` for each template variable (HashiCorp convention). `**TF_VAR_proxmox_api_token**` is reused as the Packer API token via `win11.pkr.hcl`. `**WINRM_PASSWORD**` / `**WINDOWS_ADMIN_PASSWORD**` stay plain keys.
+
+See `**.env.example**` in the repo for the authoritative list. Abbreviated:
 
 ```bash
-PROXMOX_URL=https://pve01.example.internal:8006/api2/json
-PROXMOX_USERNAME=terraform@pve
-PROXMOX_TOKEN=terraform@pve!iac=REDACTED
-
 TF_VAR_proxmox_endpoint=https://pve01.example.internal:8006/
 TF_VAR_proxmox_api_token=terraform@pve!iac=REDACTED
 TF_VAR_proxmox_node=pve01
@@ -255,6 +243,21 @@ TF_VAR_win11_template_id=9025
 TF_VAR_vm_id=1101
 TF_VAR_vm_name=win11-dev-01
 TF_VAR_bridge=vmbr0
+
+PKR_VAR_proxmox_url=https://pve01.example.internal:8006/api2/json
+PKR_VAR_proxmox_node=pve01
+PKR_VAR_proxmox_username=terraform@pve
+PKR_VAR_template_vm_id=9025
+PKR_VAR_template_name=tpl-win11-25h2-dev
+PKR_VAR_iso_file=local:iso/Win11_25H2_English_x64.iso
+PKR_VAR_virtio_iso_file=local:iso/virtio-win.iso
+PKR_VAR_vm_storage=local-lvm
+PKR_VAR_iso_storage=local
+PKR_VAR_bridge=vmbr0
+PKR_VAR_winrm_username=packer
+
+WINRM_PASSWORD=REDACTED
+WINDOWS_ADMIN_PASSWORD=REDACTED
 ```
 
 ## Phase 4: Prepare Proxmox
@@ -281,27 +284,7 @@ Start broad while testing if needed, then reduce permissions after the workflow 
 
 ### Packer variables
 
-Create `packer/vars-25h2.pkrvars.hcl`:
-
-```hcl
-proxmox_url      = "https://pve01.example.internal:8006/api2/json"
-proxmox_node     = "pve01"
-proxmox_username = "terraform@pve"
-proxmox_token    = "terraform@pve!iac=REDACTED"
-
-template_vm_id   = 9025
-template_name    = "tpl-win11-25h2-dev"
-
-iso_file         = "local:iso/Win11_25H2_English_x64.iso"
-virtio_iso_file  = "local:iso/virtio-win.iso"
-
-vm_storage       = "local-lvm"
-iso_storage      = "local"
-bridge           = "vmbr0"
-
-winrm_username   = "packer"
-winrm_password   = "Use-A-Long-Temporary-Password"
-```
+Set `**PKR_VAR_***` and passwords in the **repo root `.env`** (see Phase 3). Packer does not use a separate `*.pkrvars.hcl` file. The `proxmox_token` variable defaults to `**TF_VAR_proxmox_api_token**`; `winrm_password` defaults to `**WINRM_PASSWORD**`.
 
 ### Packer HCL skeleton
 
@@ -320,7 +303,7 @@ packer {
 variable "proxmox_url"      { type = string }
 variable "proxmox_node"     { type = string }
 variable "proxmox_username" { type = string }
-variable "proxmox_token"    { type = string, sensitive = true }
+variable "proxmox_token"    { type = string, sensitive = true, default = env("TF_VAR_proxmox_api_token") }
 variable "template_vm_id"   { type = number }
 variable "template_name"    { type = string }
 variable "iso_file"         { type = string }
@@ -329,7 +312,7 @@ variable "vm_storage"       { type = string }
 variable "iso_storage"      { type = string }
 variable "bridge"           { type = string }
 variable "winrm_username"   { type = string }
-variable "winrm_password"   { type = string, sensitive = true }
+variable "winrm_password"   { type = string, sensitive = true, default = env("WINRM_PASSWORD") }
 
 source "proxmox-iso" "win11" {
   proxmox_url              = var.proxmox_url
@@ -538,8 +521,8 @@ Run:
 ```bash
 cd /workspace/packer
 packer init .
-packer validate -var-file=vars-25h2.pkrvars.hcl win11.pkr.hcl
-packer build -var-file=vars-25h2.pkrvars.hcl win11.pkr.hcl
+packer validate win11.pkr.hcl
+packer build win11.pkr.hcl
 ```
 
 Alternative from the Docker host shell:
@@ -548,8 +531,8 @@ Alternative from the Docker host shell:
 docker exec -it iac-packer sh
 cd /workspace/packer
 packer init .
-packer validate -var-file=vars-25h2.pkrvars.hcl win11.pkr.hcl
-packer build -var-file=vars-25h2.pkrvars.hcl win11.pkr.hcl
+packer validate win11.pkr.hcl
+packer build win11.pkr.hcl
 ```
 
 At the end, Proxmox should have a template such as:
@@ -741,24 +724,14 @@ Create `ansible/group_vars/windows/vars.yml`:
 
 ```yaml
 ansible_user: devadmin
-ansible_password: "{{ vault_windows_admin_password }}"
+ansible_password: "{{ lookup('env', 'WINDOWS_ADMIN_PASSWORD') | mandatory }}"
 ansible_connection: winrm
 ansible_winrm_transport: basic
 ansible_winrm_server_cert_validation: ignore
 ansible_port: 5985
 ```
 
-Use Ansible Vault for the password:
-
-```bash
-ansible-vault create group_vars/windows/vault.yml
-```
-
-Add:
-
-```yaml
-vault_windows_admin_password: "REDACTED"
-```
+Set `**WINDOWS_ADMIN_PASSWORD**` in the same repo root `.env` as the stack (see `.env.example`). The `iac-ansible` service passes it into the container.
 
 Create `ansible/playbooks/win11-dev.yml`:
 
@@ -812,8 +785,8 @@ Run:
 
 ```bash
 cd /workspace/ansible
-ansible -i inventory/hosts.yml windows -m ansible.windows.win_ping --ask-vault-pass
-ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml --ask-vault-pass
+ansible -i inventory/hosts.yml windows -m ansible.windows.win_ping
+ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml
 ```
 
 Alternative from the Docker host shell:
@@ -821,35 +794,35 @@ Alternative from the Docker host shell:
 ```bash
 docker exec -it iac-ansible sh
 cd /workspace/ansible
-ansible -i inventory/hosts.yml windows -m ansible.windows.win_ping --ask-vault-pass
-ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml --ask-vault-pass
+ansible -i inventory/hosts.yml windows -m ansible.windows.win_ping
+ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml
 ```
 
 ## Phase 12: Future Windows ISO upgrades
 
-Keep Packer builds versioned:
+Keep Packer builds versioned by updating `**PKR_VAR_***` and `**TF_VAR_***` in `.env` (e.g. new template ID, ISO name):
 
-```hcl
-template_vm_id  = 9026
-template_name   = "tpl-win11-26h2-dev"
-iso_file        = "local:iso/Win11_26H2_English_x64.iso"
-virtio_iso_file = "local:iso/virtio-win.iso"
+```bash
+PKR_VAR_template_vm_id=9026
+PKR_VAR_template_name=tpl-win11-26h2-dev
+PKR_VAR_iso_file=local:iso/Win11_26H2_English_x64.iso
+PKR_VAR_virtio_iso_file=local:iso/virtio-win.iso
 ```
 
 Run from the Packer container:
 
 ```bash
 cd /workspace/packer
-packer build -var-file=vars-26h2.pkrvars.hcl win11.pkr.hcl
+packer build win11.pkr.hcl
 ```
 
-Then update the Portainer stack environment variable:
+Then align OpenTofu with the new template ID:
 
 ```bash
 TF_VAR_win11_template_id=9026
 ```
 
-Redeploy the stack if needed, then run from the OpenTofu container:
+Redeploy or recreate containers if needed so they reload `.env`, then run from the OpenTofu container:
 
 ```bash
 cd /workspace/tofu
@@ -863,7 +836,7 @@ Keep old templates until the new template is validated. Rollback is just changin
 
 - Use named volumes for Packer/OpenTofu caches so plugin downloads persist across restarts.
 - If you use Portainer Git stacks, make sure stack redeploys do not overwrite local secret files.
-- Keep `.env`, vault files, tfstate, and Packer variable files with secrets out of Git.
+- Keep `.env`, tfstate, and any local override files that contain secrets out of Git.
 - If the containers need to trust your internal Proxmox certificate, bake your internal CA into custom images or mount it and update the CA store.
 - If DNS inside containers cannot resolve `pve01.example.internal`, either fix Docker host DNS or use the Proxmox IP in variables.
 - Avoid exposing WinRM or RDP outside your trusted LAN/VPN.
@@ -881,8 +854,8 @@ Keep old templates until the new template is validated. Rollback is just changin
 ```bash
 cd /workspace/packer
 packer init .
-packer validate -var-file=vars-25h2.pkrvars.hcl win11.pkr.hcl
-packer build -var-file=vars-25h2.pkrvars.hcl win11.pkr.hcl
+packer validate win11.pkr.hcl
+packer build win11.pkr.hcl
 ```
 
 1. Open the OpenTofu container console and run:
@@ -898,7 +871,7 @@ tofu apply
 
 ```bash
 cd /workspace/ansible
-ansible -i inventory/hosts.yml windows -m ansible.windows.win_ping --ask-vault-pass
-ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml --ask-vault-pass
+ansible -i inventory/hosts.yml windows -m ansible.windows.win_ping
+ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml
 ```
 
