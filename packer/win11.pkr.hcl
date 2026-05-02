@@ -11,8 +11,10 @@ variable "proxmox_url" { type = string }
 variable "proxmox_node" { type = string }
 variable "proxmox_username" { type = string }
 variable "proxmox_token" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
+  description = "Defaults from TF_VAR_proxmox_api_token in the repo root .env (shared with OpenTofu)."
+  default     = env("TF_VAR_proxmox_api_token")
 }
 variable "template_vm_id" { type = number }
 variable "template_name" { type = string }
@@ -23,8 +25,10 @@ variable "iso_storage" { type = string }
 variable "bridge" { type = string }
 variable "winrm_username" { type = string }
 variable "winrm_password" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
+  description = "Defaults from WINRM_PASSWORD in the repo root .env."
+  default     = env("WINRM_PASSWORD")
 }
 
 source "proxmox-iso" "win11" {

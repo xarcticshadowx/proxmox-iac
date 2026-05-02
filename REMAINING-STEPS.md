@@ -11,25 +11,21 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 
 ---
 
-## 2. Local secrets and copies (do not commit)
+## 2. Local configuration (do not commit)
+
+| Template      | Create locally |
+| ------------- | -------------- |
+| `.env.example` | Copy to **`.env`** in the **repo root** (same directory as `docker-compose.yml`). Fill in every `TF_VAR_*`, `PKR_VAR_*`, `WINRM_PASSWORD`, and `WINDOWS_ADMIN_PASSWORD` per comments in `.env.example`. With Portainer Git stack, omit `IAC_REPO_PATH` and `SSH_KEY_PATH` when applicable (see §5) — and either create `.env` on the host next to the stack or paste the same keys into the Portainer stack environment. |
 
 
-| Template                                       | Create locally                                                                                          |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `.env.example`                                 | Stack env: `PROXMOX_*`, `TF_VAR_*`. With Portainer Git stack, omit `IAC_REPO_PATH` and `SSH_KEY_PATH` (see §5) |
-| `packer/vars-25h2.pkrvars.hcl.example`         | `packer/vars-25h2.pkrvars.hcl` (real Proxmox token, ISO paths, `winrm_password`, template ID/name)      |
-| `tofu/terraform.tfvars.example`                | `tofu/terraform.tfvars` (or set equivalent `TF_VAR_*` in the stack env)                                 |
-| `ansible/group_vars/windows/vault.yml.example` | `ansible/group_vars/windows/vault.yml` then `ansible-vault encrypt` on that file                        |
-
-
-`.gitignore` already excludes `.env`, `*.pkrvars.hcl`, and `vault.yml`.
+`.gitignore` already excludes `.env` and `*.pkrvars.hcl` (legacy local files only).
 
 ---
 
 ## 3. Proxmox preparation (runbook Phase 4)
 
-- Upload **Windows 11** and **virtio-win** ISOs to the ISO storage you reference in Packer vars (names must match `iso_file` / `virtio_iso_file`).
-- Create a **Proxmox API token** (e.g. `terraform@pve!iac=...`) and use it consistently in Packer, OpenTofu stack env, and any local var files.
+- Upload **Windows 11** and **virtio-win** ISOs to the ISO storage you reference in **`.env`** as `PKR_VAR_iso_file` / `PKR_VAR_virtio_iso_file`.
+- Create a **Proxmox API token** (e.g. `terraform@pve!iac=...`) and set **`TF_VAR_proxmox_api_token`** in `.env` (Packer reuses it for `proxmox_token`).
 - Tighten token permissions after the first successful end-to-end run.
 
 ---
@@ -37,8 +33,8 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 ## 4. Unattend and template alignment
 
 - In `packer/answer/Autounattend.xml`, the **Windows image name** under `InstallFrom` / `MetaData` must match your ISO (e.g. `dism /Get-WimInfo` on the mounted ISO). The repo default targets **Windows 11 Pro**; change if your media is different.
-- Keep the **local `packer` user password** in `Autounattend.xml` in sync with `**winrm_password`** in your Packer vars file.
-- After Packer finishes, note the **template VM ID and name**; they must match `**TF_VAR_win11_template_id`** (and your Terraform/OpenTofu variables).
+- Keep the **local `packer` user password** in `Autounattend.xml` in sync with **`WINRM_PASSWORD`** in your repo root `.env`.
+- After Packer finishes, note the **template VM ID and name**; they must match **`TF_VAR_win11_template_id`** (and your OpenTofu variables).
 
 ---
 
@@ -46,34 +42,34 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 
 **Volumes**
 
-- **`/workspace`** — **bind mount only**: `${IAC_REPO_PATH:-.}` maps the **host repo directory** (cloned/checked-out files) into the containers. Nothing else is named here.
+- `**/workspace`** — **bind mount only**: `${IAC_REPO_PATH:-.}` maps the **host repo directory** (cloned/checked-out files) into the containers. Nothing else is named here.
 - **Named Docker volumes** (persist across restarts): `packer_cache`, `packer_plugins`, `tofu_cache`, `ansible_home` — Packer/OpenTofu/Ansible caches and Ansible’s `/root`, **not** your Git tree.
 
 **Environment — Portainer stack from Git (usual case)**
 
-- **Do not set `IAC_REPO_PATH` or `SSH_KEY_PATH`.** Compose uses **`.`** for the workspace bind, which is Portainer’s **Git checkout folder** on the Docker host, so `packer/`, `tofu/`, and `ansible/` appear under `/workspace`. Redeploys refresh the checkout; containers see updated files.
+- **Do not set `IAC_REPO_PATH` or `SSH_KEY_PATH`.** Compose uses `**.`** for the workspace bind, which is Portainer’s **Git checkout folder** on the Docker host, so `packer/`, `tofu/`, and `ansible/` appear under `/workspace`. Redeploys refresh the checkout; containers see updated files.
 - **Do not set `SSH_KEY_PATH`** if Proxmox auth is **API token only** (typical for OpenTofu with this stack).
 
 **When you would set them**
 
-- **`IAC_REPO_PATH`** — only if the repo lives at a **fixed path** you manage yourself (not Portainer’s checkout), e.g. `/opt/stacks/proxmox-iac`.
-- **`SSH_KEY_PATH`** — only if the OpenTofu provider must use a **host SSH private key** file (uncommon when using API tokens).
+- `**IAC_REPO_PATH`** — only if the repo lives at a **fixed path** you manage yourself (not Portainer’s checkout), e.g. `/opt/stacks/proxmox-iac`.
+- `**SSH_KEY_PATH`** — only if the OpenTofu provider must use a **host SSH private key** file (uncommon when using API tokens).
 
-Add `PROXMOX_*` and `TF_VAR_*` per `.env.example`.
+Configure everything in **`.env`** per `.env.example` (Compose uses **`env_file: .env`**).
 
-Optional: build **`Dockerfile.ansible`**, push to your registry, then switch the `ansible` service `image:` in `docker-compose.yml` as commented in the file.
+Optional: build `**Dockerfile.ansible`**, push to your registry, then switch the `ansible` service `image:` in `docker-compose.yml` as commented in the file.
 
 ---
 
 ## 6. Run Packer (runbook Phase 7)
 
-From the `**iac-packer**` container console (or `docker exec`):
+From the `**iac-packer`** container console (or `docker exec`). Ensure the container was started with **`env_file: .env`** so all `PKR_VAR_*` and credentials are present.
 
 ```bash
 cd /workspace/packer
 packer init .
-packer validate -var-file=vars-25h2.pkrvars.hcl win11.pkr.hcl
-packer build -var-file=vars-25h2.pkrvars.hcl win11.pkr.hcl
+packer validate win11.pkr.hcl
+packer build win11.pkr.hcl
 ```
 
 Confirm the Windows template exists in Proxmox before continuing.
@@ -100,14 +96,14 @@ Ensure `**win11_template_id**` matches the Packer-built template.
 ## 8. Ansible inventory and guest access (runbook Phases 10–11)
 
 - Set `**ansible_host**` in `ansible/inventory/hosts.yml` to the **live IP** of the cloned VM.
-- The playbook assumes a Windows admin account `**devadmin`** with the password in the vault; create that user on the guest (or adjust `**ansible_user`** / automation account) so WinRM matches what you configured after clone/sysprep.
-- From `**iac-ansible`**:
+- The playbook assumes a Windows admin account `**devadmin`** with the password in **`WINDOWS_ADMIN_PASSWORD`** (repo root `.env`); create that user on the guest (or adjust `**ansible_user`** / automation account) so WinRM matches what you configured after clone/sysprep.
+- From `**iac-ansible**` (Compose loads `.env` via `env_file`):
 
 ```bash
 cd /workspace/ansible
 ansible-galaxy collection install ansible.windows community.windows   # if not baked into image
-ansible -i inventory/hosts.yml windows -m ansible.windows.win_ping --ask-vault-pass
-ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml --ask-vault-pass
+ansible -i inventory/hosts.yml windows -m ansible.windows.win_ping
+ansible-playbook -i inventory/hosts.yml playbooks/win11-dev.yml
 ```
 
 `winget` tasks need network and Microsoft Store access on the guest; allow retries if the store is slow.
@@ -134,14 +130,14 @@ If you ever run Ansible directly on Windows and hit **“locale encoding must be
 
 ## 11. Later: new Windows ISO (runbook Phase 12)
 
-When you adopt a new ISO: copy/new Packer vars (`template_vm_id`, `template_name`, `iso_file`), rebuild with Packer, update `**TF_VAR_win11_template_id`**, then `tofu plan` / `tofu apply`.
+When you adopt a new ISO: update **`PKR_VAR_*`** (template id/name, `iso_file`) in `.env`, rebuild with Packer, update **`TF_VAR_win11_template_id`**, then `tofu plan` / `tofu apply`.
 
 ---
 
 ## Quick dependency graph
 
 ```text
-Secrets (.env, pkrvars, tfvars, vault)
+Repo `.env` (TF_VAR_*, PKR_VAR_*, passwords)
        → Proxmox ISOs + API token
        → Portainer stack (mounted repo)
        → Packer build (template)
