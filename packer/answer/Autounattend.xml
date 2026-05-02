@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <!--
-    Lab template: password must match winrm_password in your vars file (default in .example).
+    Lab template: run render-autounattend; local account password comes from WINRM_PASSWORD (Packer winrm_password).
     WIM index: run packer/scripts/render-autounattend.ps1 (or .sh), or set PKR_VAR_win11_install_wim_index
     before build (iac-packer runs render on container start).
-    Confirm edition index: dism /Get-WimInfo /WimFile:X:\sources\install.wim  (or install.esd — edit Path below).
+    Confirm edition index: dism /Get-WimInfo /WimFile:X:\sources\install.wim  (or install.esd â€” edit Path below).
   -->
   <settings pass="windowsPE">
     <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -117,7 +117,7 @@
             <Name>packer</Name>
             <Group>Administrators</Group>
             <Password>
-              <Value>guLyKFhU-FuM7N.9Xm79b8Gg</Value>
+              <Value>REPLACE_ME</Value>
               <PlainText>true</PlainText>
             </Password>
           </LocalAccount>
@@ -125,7 +125,7 @@
       </UserAccounts>
       <AutoLogon>
         <Password>
-          <Value>guLyKFhU-FuM7N.9Xm79b8Gg</Value>
+          <Value>REPLACE_ME</Value>
           <PlainText>true</PlainText>
         </Password>
         <Enabled>true</Enabled>
