@@ -45,8 +45,9 @@ services:
       PKR_VAR_proxmox_username: ${PKR_VAR_proxmox_username}
       PKR_VAR_template_vm_id: ${PKR_VAR_template_vm_id}
       PKR_VAR_template_name: ${PKR_VAR_template_name}
-      PKR_VAR_iso_file: ${PKR_VAR_iso_file}
-      PKR_VAR_supplemental_iso_file: ${PKR_VAR_supplemental_iso_file}
+      # Use :- defaults: unset/empty host .env would otherwise pass "" and override packer/win11.pkr.hcl variable defaults.
+      PKR_VAR_iso_file: ${PKR_VAR_iso_file:-local:iso/_set_PKR_VAR_iso_file}
+      PKR_VAR_supplemental_iso_file: ${PKR_VAR_supplemental_iso_file:-local:iso/_set_PKR_VAR_supplemental_iso_file}
       PKR_VAR_vm_storage: ${PKR_VAR_vm_storage}
       PKR_VAR_bridge: ${PKR_VAR_bridge}
       PKR_VAR_winrm_username: ${PKR_VAR_winrm_username}
