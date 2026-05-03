@@ -3,8 +3,8 @@
 # iac-packer runs render on container start—recreate the container after changing WINRM_PASSWORD / PKR_VAR_*.
 # Vars: PKR_VAR_win11_install_wim_index, optional PKR_VAR_win11_install_image_name (Name from dism; overrides index),
 # PKR_VAR_win11_install_filename, WINRM_PASSWORD.
-# Three optical drives (Win + virtio + cidata) breaks Setup: UnattendSearchSetupSourceDrive ARC CDROM(0)→NT path (0x80070002).
-# Use build-supplemental-iso.sh to merge virtio-win + cidata files into ONE ISO; attach only boot_iso + supplemental_iso_file (two CDs total).
+# Too many virtual CDs can break Setup (UnattendSearchSetupSourceDrive ARC → NT path, 0x80070002). Use
+# build-supplemental-iso.sh to merge virtio-win + cidata into ONE ISO; attach boot_iso + supplemental_iso_file only (two CDs).
 packer {
   required_plugins {
     proxmox = {
@@ -30,10 +30,16 @@ variable "proxmox_token" {
 }
 variable "template_vm_id" { type = number }
 variable "template_name" { type = string }
-variable "iso_file" { type = string }
+# Non-empty defaults so `packer validate` passes when PKR_VAR_* is unset; override via .env for real builds.
+variable "iso_file" {
+  type        = string
+  description = "Proxmox datastore path to Windows install ISO, e.g. local:iso/Win11_....iso"
+  default     = "local:iso/_set_PKR_VAR_iso_file"
+}
 variable "supplemental_iso_file" {
   type        = string
   description = "Proxmox datastore path to merged virtio+cidata ISO (build with packer/scripts/build-supplemental-iso.sh after render-autounattend)."
+  default     = "local:iso/_set_PKR_VAR_supplemental_iso_file"
 }
 variable "vm_storage" { type = string }
 variable "bridge" { type = string }
