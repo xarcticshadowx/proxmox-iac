@@ -38,8 +38,8 @@ variable "iso_file" {
 }
 variable "supplemental_iso_file" {
   type        = string
-  description = "Proxmox datastore path to merged virtio+cidata ISO (build with packer/scripts/build-supplemental-iso.sh after render-autounattend)."
-  default     = "local:iso/_set_PKR_VAR_supplemental_iso_file"
+  description = "Proxmox datastore path to merged virtio+cidata ISO (build with packer/scripts/build-supplemental-iso.sh after render-autounattend). Empty string omits the second CD (sata0)."
+  default     = ""
 }
 variable "vm_storage" { type = string }
 variable "bridge" { type = string }
@@ -73,7 +73,8 @@ source "proxmox-iso" "win11" {
     index    = 0
   }
 
-  boot = "order=ide0;sata0;scsi0;net0"
+  # Omit sata0 from boot order when no supplemental ISO is attached (Proxmox rejects placeholder paths like iso/_set_PKR_VAR_*).
+  boot = var.supplemental_iso_file != "" ? "order=ide0;sata0;scsi0;net0" : "order=ide0;scsi0;net0"
 
   # One Enter usually clears "Press any key to boot from CD/DVD…" on ide0 (Win11). Add extra "<enter>"
   # only if your firmware still stops at that prompt after the first key.
@@ -124,11 +125,14 @@ source "proxmox-iso" "win11" {
     bridge = var.bridge
   }
 
-  additional_iso_files {
-    iso_file = var.supplemental_iso_file
-    unmount  = true
-    type     = "sata"
-    index    = 0
+  dynamic "additional_iso_files" {
+    for_each = var.supplemental_iso_file != "" ? [1] : []
+    content {
+      iso_file = var.supplemental_iso_file
+      unmount  = true
+      type     = "sata"
+      index    = 0
+    }
   }
 
   communicator   = "winrm"
