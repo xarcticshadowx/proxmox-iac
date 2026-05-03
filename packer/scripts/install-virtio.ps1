@@ -1,11 +1,12 @@
 $ErrorActionPreference = "Stop"
 
+# Matches standalone virtio-win.iso (label VIRTIO*) or merged supplemental ISO (label cidata — see build-supplemental-iso.sh).
 $virtioDrive = Get-Volume |
-  Where-Object { $_.FileSystemLabel -match "virtio|VirtIO" } |
+  Where-Object { $_.FileSystemLabel -match "cidata|virtio|VirtIO" } |
   Select-Object -First 1
 
 if (-not $virtioDrive) {
-  throw "VirtIO ISO not found"
+  throw "VirtIO / supplemental ISO not found (expected volume label cidata or virtio)"
 }
 
 $drive = "$($virtioDrive.DriveLetter):"

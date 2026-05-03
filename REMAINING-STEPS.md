@@ -25,7 +25,7 @@ The IaC files in this repo are in place. What follows is what **you** still do o
 
 ## 3. Proxmox preparation (runbook Phase 4)
 
-- Upload **Windows 11** and **virtio-win** ISOs to the ISO storage you reference in `**.env`** as `PKR_VAR_iso_file` / `PKR_VAR_virtio_iso_file`.
+- Upload **Windows 11** ISO and the **merged supplemental** ISO (see `packer/scripts/build-supplemental-iso.sh`) as `PKR_VAR_iso_file` / `PKR_VAR_supplemental_iso_file`.
 - Create a **Proxmox API token** (e.g. `terraform@pve!iac=...`) and set `**TF_VAR_proxmox_api_token`** in `.env` (Packer reuses it for `proxmox_token`).
 - Tighten token permissions after the first successful end-to-end run.
 

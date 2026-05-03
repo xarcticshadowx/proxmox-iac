@@ -3,7 +3,8 @@
 # iac-packer runs render on container start—recreate the container after changing WINRM_PASSWORD / PKR_VAR_*.
 # Vars: PKR_VAR_win11_install_wim_index, optional PKR_VAR_win11_install_image_name (Name from dism; overrides index),
 # PKR_VAR_win11_install_filename, WINRM_PASSWORD.
-# If setupact shows "Unable to convert ARC path ... CDROM(0) ... 0x80070002", the install ISO bus/order is wrong — fix boot_iso/additional_iso layout (below), not only WIM index.
+# Three optical drives (Win + virtio + cidata) breaks Setup: UnattendSearchSetupSourceDrive ARC CDROM(0)→NT path (0x80070002).
+# Use build-supplemental-iso.sh to merge virtio-win + cidata files into ONE ISO; attach only boot_iso + supplemental_iso_file (two CDs total).
 packer {
   required_plugins {
     proxmox = {
@@ -30,9 +31,11 @@ variable "proxmox_token" {
 variable "template_vm_id" { type = number }
 variable "template_name" { type = string }
 variable "iso_file" { type = string }
-variable "virtio_iso_file" { type = string }
+variable "supplemental_iso_file" {
+  type        = string
+  description = "Proxmox datastore path to merged virtio+cidata ISO (build with packer/scripts/build-supplemental-iso.sh after render-autounattend)."
+}
 variable "vm_storage" { type = string }
-variable "iso_storage" { type = string }
 variable "bridge" { type = string }
 variable "winrm_username" { type = string }
 variable "winrm_password" {
@@ -53,22 +56,20 @@ source "proxmox-iso" "win11" {
   vm_name       = var.template_name
   template_name = var.template_name
 
-  # Windows install ISO on sata0 (first SATA optical). virtio-win is sata1, cidata sata2. Mixing ide0 for
-  # Windows + SATA CDs caused Setup to fail: UnattendSearchSetupSourceDrive: Unable to convert ARC path
-  # [MULTI(0)DISK(0)CDROM(0)] to NT path; status = 0x80070002 — CDROM(0) never mapped to a drive letter.
+  # Windows install media on ide0; merged virtio+cidata supplemental ISO on sata0 — only two optical devices.
   #
   # Shift+F10 troubleshooting: X: is WinPE (boot.wim RAMdisk); install.esd/install.wim live under
   # sources\ on the Windows ISO volume (often D:–H:, not X:). Example: for %d in (D E F G H) do @dir %d:\sources\install.*
   boot_iso {
     iso_file = var.iso_file
     unmount  = true
-    type     = "sata"
+    type     = "ide"
     index    = 0
   }
 
-  boot = "order=sata0;sata1;sata2;scsi0;net0"
+  boot = "order=ide0;sata0;scsi0;net0"
 
-  # One Enter usually clears "Press any key to boot from CD/DVD…" on sata0 (Win11). Add extra "<enter>"
+  # One Enter usually clears "Press any key to boot from CD/DVD…" on ide0 (Win11). Add extra "<enter>"
   # only if your firmware still stops at that prompt after the first key.
   boot_wait = "10s"
   boot_command = [
@@ -118,26 +119,10 @@ source "proxmox-iso" "win11" {
   }
 
   additional_iso_files {
-    iso_file = var.virtio_iso_file
+    iso_file = var.supplemental_iso_file
     unmount  = true
     type     = "sata"
-    index    = 1
-  }
-
-  additional_iso_files {
-    iso_storage_pool = var.iso_storage
-    cd_files = [
-      "answer/Autounattend.xml",
-      "scripts/bootstrap-winrm.ps1",
-      "scripts/install-virtio.ps1",
-      "scripts/install-qemu-agent.ps1",
-      "scripts/baseline-windows.ps1",
-      "scripts/sysprep.ps1"
-    ]
-    cd_label = "cidata"
-    unmount  = true
-    type     = "sata"
-    index    = 2
+    index    = 0
   }
 
   communicator   = "winrm"
