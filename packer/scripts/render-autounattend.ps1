@@ -43,39 +43,35 @@ if (-not [string]::IsNullOrWhiteSpace($imgName)) {
 # #region agent log
 try {
   $repoRoot = Split-Path -Parent $packerRoot
-  $logPath = Join-Path $repoRoot 'debug-d29db6.log'
+  $logPath = Join-Path $repoRoot 'debug-932ce5.log'
   $rawOut = Get-Content -Raw -Path $outPath
   $installFrom = $null
-  if ($rawOut -match '<InstallFrom>\s*<Path>([^<]+)</Path>') { $installFrom = $Matches[1].Trim() }
-  $imgIdx = $null
-  if ($rawOut -match '<Key>/IMAGE/INDEX</Key>\s*<Value>([^<]+)</Value>') { $imgIdx = $Matches[1].Trim() }
-  $imgNm = $null
-  if ($rawOut -match '<Key>/IMAGE/NAME</Key>\s*<Value>([^<]+)</Value>') { $imgNm = $Matches[1].Trim() }
+  $metaKey = $null
+  $metaVal = $null
+  if ($rawOut -match '(?s)<InstallFrom>(.*?)</InstallFrom>') {
+    $ib = $Matches[1]
+    if ($ib -match '<Path>([^<]+)</Path>') { $installFrom = $Matches[1].Trim() }
+    if ($ib -match '<Key>([^<]+)</Key>') { $metaKey = $Matches[1].Trim() }
+    if ($ib -match '<Value>([^<]+)</Value>') { $metaVal = $Matches[1].Trim() }
+  }
   $placeholderLeak = [bool]($rawOut -match '__WIM_META_KEY__|__WIM_META_VALUE__|__WINRM_PASSWORD__|__INSTALL_FILENAME__')
   $repoReplaceMe = [bool]($rawOut -match '<Value>REPLACE_ME</Value>')
   $bytes = [System.IO.File]::ReadAllBytes($outPath)
   $utf8Bom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
   $kind = if ($installFrom -match 'install\.esd') { 'esd' } elseif ($installFrom -match 'install\.wim') { 'wim' } else { 'other' }
   $installMetaMode = $(if (-not [string]::IsNullOrWhiteSpace($imgName)) { 'name' } else { 'index' })
-  $payload = [ordered]@{
-    sessionId    = 'd29db6'
-    hypothesisId = 'H1-H6'
-    location     = 'render-autounattend.ps1'
-    message      = 'Autounattend rendered (host)'
-    data         = @{
-      installFromPath = $installFrom
-      installFilename = $installFile
-      installMediaKind = $kind
-      imageIndex      = $imgIdx
-      imageName       = $imgNm
-      installImageMetaMode = $installMetaMode
-      placeholderLeak = $placeholderLeak
-      repoReplaceMePasswordStillPresent = $repoReplaceMe
-      utf8BomPresent    = $utf8Bom
-    }
-    timestamp    = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  $virtio = [bool]($rawOut -match 'vioscsi\.inf')
+  $cloudOff = [bool]($rawOut -match 'DisableCloudOptimizedContent')
+  $ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  $nameSet = -not [string]::IsNullOrWhiteSpace($imgName)
+  $h1 = @{ sessionId = '932ce5'; hypothesisId = 'H1'; location = 'render-autounattend.ps1'; message = 'InstallFrom MetaData (image selection)'; data = @{ metaKey = $metaKey; metaValue = $metaVal; metaMode = $installMetaMode }; timestamp = $ts }
+  $h2 = @{ sessionId = '932ce5'; hypothesisId = 'H2'; location = 'render-autounattend.ps1'; message = 'InstallFrom Path vs env filename'; data = @{ installFromPath = $installFrom; pkrInstallFilename = $installFile; pathMediaKind = $kind }; timestamp = $ts }
+  $h3 = @{ sessionId = '932ce5'; hypothesisId = 'H3'; location = 'render-autounattend.ps1'; message = 'VirtIO RunSynchronous references vioscsi.inf'; data = @{ vioscsiInfReferenced = $virtio }; timestamp = $ts }
+  $h4 = @{ sessionId = '932ce5'; hypothesisId = 'H4'; location = 'render-autounattend.ps1'; message = 'Cloud-update mitigation + placeholder/BOM'; data = @{ disableCloudOptimizedContentLinePresent = $cloudOff; placeholderLeak = $placeholderLeak; utf8BomPresent = $utf8Bom; replaceMeStillPresent = $repoReplaceMe }; timestamp = $ts }
+  $h5 = @{ sessionId = '932ce5'; hypothesisId = 'H5'; location = 'render-autounattend.ps1'; message = 'PKR_VAR defaults used at render'; data = @{ pkrWin11InstallWimIndex = $idx; pkrWin11InstallImageNameSet = $nameSet }; timestamp = $ts }
+  foreach ($p in @($h1, $h2, $h3, $h4, $h5)) {
+    Add-Content -LiteralPath $logPath -Value (($p | ConvertTo-Json -Compress -Depth 6)) -Encoding utf8
   }
-  Add-Content -LiteralPath $logPath -Value (($payload | ConvertTo-Json -Compress -Depth 5)) -Encoding utf8
 }
 catch { }
 # #endregion
