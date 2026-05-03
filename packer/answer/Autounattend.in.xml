@@ -17,8 +17,23 @@
     </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <!--
-        Proxmox uses virtio-scsi-single; WinPE has no vioscsi driver, so "Where do you want to install Windows?"
-        shows no disks until vioscsi.inf is loaded from the supplemental ISO (merged virtio-win + cidata; second CD after Windows install media). This must run before DiskConfiguration.
+        Proxmox uses virtio-scsi-single; WinPE has no vioscsi inbox driver.
+        Option 1 (packer_proxmox_option1_virtio_driver.md): DriverPaths in windowsPE — Setup scans these folders on the VirtIO/supplemental CD for vioscsi before the disk UI.
+        Letters D/E/F cover typical WinPE ordering (Windows ISO often first optical; supplemental second). Override folder via PKR_VAR_virtio_vioscsi_rel_path if your virtio-win layout differs.
+      -->
+      <DriverPaths>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="1">
+          <Path>__VIRTIO_PATH_D__</Path>
+        </PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="2">
+          <Path>__VIRTIO_PATH_E__</Path>
+        </PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="3">
+          <Path>__VIRTIO_PATH_F__</Path>
+        </PathAndCredentials>
+      </DriverPaths>
+      <!--
+        Fallback: drvload via PowerShell if DriverPaths letter/folder does not match the guest (see doc troubleshooting).
       -->
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add">

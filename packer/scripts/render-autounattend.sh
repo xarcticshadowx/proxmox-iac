@@ -3,6 +3,7 @@
 #   __WIM_META_*           ← PKR_VAR_win11_install_wim_index OR PKR_VAR_win11_install_image_name (overrides index)
 #   __INSTALL_FILENAME__   ← PKR_VAR_win11_install_filename (default install.wim; install.esd for some retail ISOs)
 #   __WINRM_PASSWORD__     ← WINRM_PASSWORD (same as Packer winrm_password)
+#   __VIRTIO_PATH_[DEF]__ ← PKR_VAR_virtio_vioscsi_rel_path (default vioscsi/w11/amd64; Option 1 DriverPaths, see packer_proxmox_option1_virtio_driver.md)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IDX="${PKR_VAR_win11_install_wim_index:-6}"
@@ -19,8 +20,15 @@ if [ -n "${PKR_VAR_win11_install_image_name:-}" ]; then
   echo "WARN: PKR_VAR_win11_install_image_name is set — must match dism /Get-WimInfo Name exactly or Setup fails. If index ${IDX} is correct, unset PKR_VAR_win11_install_image_name." >&2
 fi
 
+REL="${PKR_VAR_virtio_vioscsi_rel_path:-vioscsi/w11/amd64}"
+REL=$(printf '%s' "$REL" | tr '\\' '/')
+VIRT_D="D:/${REL}"
+VIRT_E="E:/${REL}"
+VIRT_F="F:/${REL}"
+
 # awk: gsub replacement treats & specially; escape \ and & in the password and meta value
-awk -v mk="$MK" -v mv="$MV" -v instfn="$INSTFN" -v pw="$WINRM_PASSWORD" '
+awk -v mk="$MK" -v mv="$MV" -v instfn="$INSTFN" -v pw="$WINRM_PASSWORD" \
+  -v vd="$VIRT_D" -v ve="$VIRT_E" -v vf="$VIRT_F" '
 function esc_repl(s, r) {
   r = s
   gsub(/\\/, "\\\\", r)
@@ -32,10 +40,13 @@ function esc_repl(s, r) {
   gsub(/__WIM_META_VALUE__/, esc_repl(mv))
   gsub(/__INSTALL_FILENAME__/, instfn)
   gsub(/__WINRM_PASSWORD__/, esc_repl(pw))
+  gsub(/__VIRTIO_PATH_D__/, esc_repl(vd))
+  gsub(/__VIRTIO_PATH_E__/, esc_repl(ve))
+  gsub(/__VIRTIO_PATH_F__/, esc_repl(vf))
   print
 }' "$ROOT/answer/Autounattend.in.xml" > "$ROOT/answer/Autounattend.xml"
 
-if grep -qE '__WIM_META_KEY__|__WIM_META_VALUE__|__INSTALL_FILENAME__|__WINRM_PASSWORD__' "$ROOT/answer/Autounattend.xml"; then
+if grep -qE '__WIM_META_KEY__|__WIM_META_VALUE__|__INSTALL_FILENAME__|__WINRM_PASSWORD__|__VIRTIO_PATH_' "$ROOT/answer/Autounattend.xml"; then
   echo "FATAL: render left placeholders in Autounattend.xml"
   exit 1
 fi
@@ -55,7 +66,7 @@ PATH_LINE=$(sed -n '/<InstallFrom>/,/<\/InstallFrom>/p' "$OUT" | grep '<Path>' |
 META_KEY_LINE=$(sed -n '/<InstallFrom>/,/<\/InstallFrom>/p' "$OUT" | grep '<Key>' | head -1 | sed -n 's/.*<Key>//;s|</Key>.*||p' | tr -d '\r')
 META_VAL_LINE=$(sed -n '/<InstallFrom>/,/<\/InstallFrom>/p' "$OUT" | grep '<Value>' | head -1 | sed -n 's/.*<Value>//;s|</Value>.*||p' | tr -d '\r')
 LEAK=0
-grep -q '__WIM_META_KEY__\|__WIM_META_VALUE__\|__WINRM_PASSWORD__\|__INSTALL_FILENAME__' "$OUT" 2>/dev/null && LEAK=1 || true
+grep -q '__WIM_META_KEY__\|__WIM_META_VALUE__\|__WINRM_PASSWORD__\|__INSTALL_FILENAME__\|__VIRTIO_PATH_' "$OUT" 2>/dev/null && LEAK=1 || true
 KIND="other"
 case "$PATH_LINE" in
   *install.esd) KIND="esd" ;;
@@ -102,5 +113,13 @@ else
     "$CLOUD_OFF" "$LEAK" "$BOM" "$REP" "$TS_MS" >>"$LOG" || true
   printf '{"sessionId":"932ce5","hypothesisId":"H5","location":"render-autounattend.sh","message":"PKR defaults","data":{"pkrWin11InstallWimIndex":"%s","pkrWin11InstallImageNameSet":%s},"timestamp":%s}\n' \
     "$IDX" "$NAME_SET" "$TS_MS" >>"$LOG" || true
+fi
+if command -v jq >/dev/null 2>&1; then
+  jq -n --arg sid "d3071e" --arg hk "O1" --arg loc "render-autounattend.sh" \
+    --arg rel "$REL" --arg sample "$VIRT_E" --argjson ts "$TS_MS" \
+    '{sessionId:$sid,hypothesisId:$hk,location:$loc,message:"Option1 DriverPaths",data:{virtioRelPath:$rel,sampleDriverPath:$sample},timestamp:$ts}' >>"$REPO/debug-d3071e.log" 2>/dev/null || true
+else
+  printf '{"sessionId":"d3071e","hypothesisId":"O1","location":"render-autounattend.sh","message":"Option1 DriverPaths","data":{"virtioRelPath":"%s","sampleDriverPath":"%s"},"timestamp":%s}\n' \
+    "$REL" "$VIRT_E" "$TS_MS" >>"$REPO/debug-d3071e.log" 2>/dev/null || true
 fi
 # #endregion
