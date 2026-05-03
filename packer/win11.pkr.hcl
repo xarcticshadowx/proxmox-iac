@@ -3,8 +3,9 @@
 # iac-packer runs render on container start—recreate the container after changing WINRM_PASSWORD / PKR_VAR_*.
 # Vars: PKR_VAR_win11_install_wim_index, optional PKR_VAR_win11_install_image_name (Name from dism; overrides index),
 # PKR_VAR_win11_install_filename, WINRM_PASSWORD.
-# Too many virtual CDs can break Setup (UnattendSearchSetupSourceDrive ARC → NT path, 0x80070002). Use
-# build-supplemental-iso.sh to merge virtio-win + cidata into ONE ISO; attach boot_iso + supplemental_iso_file only (two CDs).
+# Extra opticals: (A) one merged ISO — build-supplemental-iso.sh → PKR_VAR_supplemental_iso_file, or
+# (B) stock virtio-win + cidata-only — build-cidata-only-iso.sh + PKR_VAR_virtio_iso_file + PKR_VAR_cidata_iso_file (two CDs; do not set supplemental).
+# Three+ CDs can break Setup (UnattendSearchSetupSourceDrive / 0x80070002); avoid mixing modes.
 packer {
   required_plugins {
     proxmox = {
@@ -39,9 +40,18 @@ variable "iso_file" {
 variable "supplemental_iso_file" {
   type        = string
   description = <<-EOT
-    Proxmox path to merged virtio-win+cidata ISO (see packer/scripts/build-supplemental-iso.sh).
-    Required for normal builds: virtio-scsi-single has no WinPE inbox driver; answer/Autounattend.in.xml loads vioscsi.inf from this second CD (sata0). Empty omits sata0 — Setup then shows no disks unless you use non-VirtIO storage or PKR_VAR_allow_build_without_supplemental_iso (see packer-build-with-render.sh).
+    Merged virtio+cidata ISO (packer/scripts/build-supplemental-iso.sh). Leave empty if using split mode (virtio_iso_file + cidata_iso_file).
 EOT
+  default     = ""
+}
+variable "virtio_iso_file" {
+  type        = string
+  description = "Proxmox path to stock virtio-win.iso (split mode with cidata_iso_file; sata0). DriverPaths in Autounattend point at D/E/F under this media."
+  default     = ""
+}
+variable "cidata_iso_file" {
+  type        = string
+  description = "Proxmox path to cidata-only ISO (packer/scripts/build-cidata-only-iso.sh; volume label cidata; sata1 in split mode)."
   default     = ""
 }
 variable "vm_storage" { type = string }
@@ -52,6 +62,23 @@ variable "winrm_password" {
   sensitive   = true
   description = "Defaults from WINRM_PASSWORD in the repo root .env."
   default     = env("WINRM_PASSWORD")
+}
+
+locals {
+  use_split = var.virtio_iso_file != "" && var.cidata_iso_file != ""
+  # If split and merged are both set, build script should fail; prefer split when both virtio+cidata are set.
+  use_merged = var.supplemental_iso_file != "" && !local.use_split
+  iso_attachments = (
+    local.use_split ? [
+      { iso = var.virtio_iso_file, idx = 0 },
+      { iso = var.cidata_iso_file, idx = 1 },
+    ] :
+    local.use_merged ? [
+      { iso = var.supplemental_iso_file, idx = 0 },
+    ] :
+    []
+  )
+  extra_sata_count = length(local.iso_attachments)
 }
 
 source "proxmox-iso" "win11" {
@@ -65,7 +92,7 @@ source "proxmox-iso" "win11" {
   vm_name       = var.template_name
   template_name = var.template_name
 
-  # Windows install media on ide0; merged virtio+cidata supplemental ISO on sata0 — only two optical devices.
+  # Windows on ide0; merged supplemental on sata0 OR split: virtio-win sata0 + cidata sata1.
   #
   # Shift+F10 troubleshooting: X: is WinPE (boot.wim RAMdisk); install.esd/install.wim live under
   # sources\ on the Windows ISO volume (often D:–H:, not X:). Example: for %d in (D E F G H) do @dir %d:\sources\install.*
@@ -76,8 +103,11 @@ source "proxmox-iso" "win11" {
     index    = 0
   }
 
-  # Omit sata0 from boot order when no supplemental ISO is attached (Proxmox rejects placeholder paths like iso/_set_PKR_VAR_*).
-  boot = var.supplemental_iso_file != "" ? "order=ide0;sata0;scsi0;net0" : "order=ide0;scsi0;net0"
+  boot = (
+    local.extra_sata_count == 2 ? "order=ide0;sata0;sata1;scsi0;net0" :
+    local.extra_sata_count == 1 ? "order=ide0;sata0;scsi0;net0" :
+    "order=ide0;scsi0;net0"
+  )
 
   # One Enter usually clears "Press any key to boot from CD/DVD…" on ide0 (Win11). Add extra "<enter>"
   # only if your firmware still stops at that prompt after the first key.
@@ -129,12 +159,12 @@ source "proxmox-iso" "win11" {
   }
 
   dynamic "additional_iso_files" {
-    for_each = var.supplemental_iso_file != "" ? [1] : []
+    for_each = local.iso_attachments
     content {
-      iso_file = var.supplemental_iso_file
+      iso_file = additional_iso_files.value.iso
       unmount  = true
       type     = "sata"
-      index    = 0
+      index    = additional_iso_files.value.idx
     }
   }
 

@@ -47,8 +47,10 @@ services:
       PKR_VAR_template_name: ${PKR_VAR_template_name}
       # Use :- defaults: unset/empty host .env would otherwise pass "" and override packer/win11.pkr.hcl variable defaults.
       PKR_VAR_iso_file: ${PKR_VAR_iso_file:-local:iso/_set_PKR_VAR_iso_file}
-      # Empty when unset — use scripts/build-supplemental-iso.sh + set path; required for virtio-scsi WinPE (vioscsi.inf).
+      # Empty when unset. Use merged build-supplemental-iso.sh OR split virtio + cidata-only (both PKR_VAR_* set).
       PKR_VAR_supplemental_iso_file: ${PKR_VAR_supplemental_iso_file:-}
+      PKR_VAR_virtio_iso_file: ${PKR_VAR_virtio_iso_file:-}
+      PKR_VAR_cidata_iso_file: ${PKR_VAR_cidata_iso_file:-}
       PKR_VAR_allow_build_without_supplemental_iso: ${PKR_VAR_allow_build_without_supplemental_iso:-}
       PKR_VAR_vm_storage: ${PKR_VAR_vm_storage}
       PKR_VAR_bridge: ${PKR_VAR_bridge}

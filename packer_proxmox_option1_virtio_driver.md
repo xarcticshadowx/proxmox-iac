@@ -4,7 +4,7 @@
 
 `packer/answer/Autounattend.in.xml` adds `<DriverPaths>` under `Microsoft-Windows-Setup` (windows PE pass) with three candidate paths `D:/`, `E:/`, and `F:/` plus a relative folder controlled by **`PKR_VAR_virtio_vioscsi_rel_path`** (default `vioscsi/w11/amd64`). Run **`packer/scripts/render-autounattend.sh`** (or `.ps1`) before build so `answer/Autounattend.xml` is generated.
 
-Use **merged supplemental ISO** (`build-supplemental-iso.sh`) or attach stock **virtio-win.iso** as the second CD in Packer — the folder layout under that ISO must match `PKR_VAR_virtio_vioscsi_rel_path`. The existing **RunSynchronous** `drvload` script remains as a fallback.
+Use **merged supplemental ISO** (`build-supplemental-iso.sh`, `PKR_VAR_supplemental_iso_file`) **or** attach stock **virtio-win.iso** (`PKR_VAR_virtio_iso_file`) plus a **cidata-only** ISO from `packer/scripts/build-cidata-only-iso.sh` (`PKR_VAR_cidata_iso_file`) — split mode avoids extracting virtio into a custom merge. The folder layout on the virtio CD must match `PKR_VAR_virtio_vioscsi_rel_path`. The existing **RunSynchronous** `drvload` script remains as a fallback.
 
 ---
 
