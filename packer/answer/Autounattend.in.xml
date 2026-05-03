@@ -18,7 +18,7 @@
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <!--
         Proxmox uses virtio-scsi-single; WinPE has no vioscsi driver, so "Where do you want to install Windows?"
-        shows no disks until vioscsi.inf is loaded from the virtio-win ISO (sata0). This must run before DiskConfiguration.
+        shows no disks until vioscsi.inf is loaded from the virtio-win ISO (sata1 when Win11 ISO is sata0). This must run before DiskConfiguration.
       -->
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add">

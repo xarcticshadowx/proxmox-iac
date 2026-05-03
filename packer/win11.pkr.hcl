@@ -2,7 +2,8 @@
 # before `packer validate|build` so `answer/Autounattend.xml` is never the git placeholder (REPLACE_ME).
 # iac-packer runs render on container start—recreate the container after changing WINRM_PASSWORD / PKR_VAR_*.
 # Vars: PKR_VAR_win11_install_wim_index, optional PKR_VAR_win11_install_image_name (Name from dism; overrides index),
-# PKR_VAR_win11_install_filename, WINRM_PASSWORD. If 0x80070002 persists, use /IMAGE/NAME or correct index from dism /Get-WimInfo.
+# PKR_VAR_win11_install_filename, WINRM_PASSWORD.
+# If setupact shows "Unable to convert ARC path ... CDROM(0) ... 0x80070002", the install ISO bus/order is wrong — fix boot_iso/additional_iso layout (below), not only WIM index.
 packer {
   required_plugins {
     proxmox = {
@@ -52,22 +53,22 @@ source "proxmox-iso" "win11" {
   vm_name       = var.template_name
   template_name = var.template_name
 
-  # Win11 boot ISO is the ONLY ide CD-ROM (ide0). virtio-win + cidata use SATA so OVMF's "DVD-ROM
-  # QMxxxxx" list is not three IDE drives in plugin default order (QMxxxx numbers are QEMU-enumerated,
-  # not ide slot numbers). First blue-menu entry was often not the full Windows media before this split.
+  # Windows install ISO on sata0 (first SATA optical). virtio-win is sata1, cidata sata2. Mixing ide0 for
+  # Windows + SATA CDs caused Setup to fail: UnattendSearchSetupSourceDrive: Unable to convert ARC path
+  # [MULTI(0)DISK(0)CDROM(0)] to NT path; status = 0x80070002 — CDROM(0) never mapped to a drive letter.
   #
   # Shift+F10 troubleshooting: X: is WinPE (boot.wim RAMdisk); install.esd/install.wim live under
-  # sources\ on the ide0 ISO volume (often D:–H:, not X:). Example: for %d in (D E F G H) do @dir %d:\sources\install.*
+  # sources\ on the Windows ISO volume (often D:–H:, not X:). Example: for %d in (D E F G H) do @dir %d:\sources\install.*
   boot_iso {
     iso_file = var.iso_file
     unmount  = true
-    type     = "ide"
+    type     = "sata"
     index    = 0
   }
 
-  boot = "order=ide0;sata0;sata1;scsi0;net0"
+  boot = "order=sata0;sata1;sata2;scsi0;net0"
 
-  # One Enter usually clears "Press any key to boot from CD/DVD…" on ide0 (Win11). Add extra "<enter>"
+  # One Enter usually clears "Press any key to boot from CD/DVD…" on sata0 (Win11). Add extra "<enter>"
   # only if your firmware still stops at that prompt after the first key.
   boot_wait = "10s"
   boot_command = [
@@ -120,7 +121,7 @@ source "proxmox-iso" "win11" {
     iso_file = var.virtio_iso_file
     unmount  = true
     type     = "sata"
-    index    = 0
+    index    = 1
   }
 
   additional_iso_files {
@@ -136,7 +137,7 @@ source "proxmox-iso" "win11" {
     cd_label = "cidata"
     unmount  = true
     type     = "sata"
-    index    = 1
+    index    = 2
   }
 
   communicator   = "winrm"
