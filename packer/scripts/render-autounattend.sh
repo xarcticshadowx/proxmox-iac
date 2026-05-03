@@ -47,11 +47,13 @@ else
 fi
 
 # #region agent log
+# Session debug: H1 wrong WIM index/name, H2 install.wim vs install.esd, H3 virtio vioscsi path, H4 Dynamic Update, H5 name typo
 REPO="$(cd "$ROOT/.." && pwd)"
-LOG="$REPO/debug-d29db6.log"
+LOG="$REPO/debug-932ce5.log"
 OUT="$ROOT/answer/Autounattend.xml"
-# Match only <Path> lines — comments above InstallFrom also mention install.wim and would poison grep order.
-PATH_LINE=$(grep -E '<Path>.*install\.(wim|esd)</Path>' "$OUT" | head -1 | sed -n 's/.*<Path>//;s|</Path>.*||p' | tr -d '\r')
+PATH_LINE=$(sed -n '/<InstallFrom>/,/<\/InstallFrom>/p' "$OUT" | grep '<Path>' | head -1 | sed -n 's/.*<Path>//;s|</Path>.*||p' | tr -d '\r')
+META_KEY_LINE=$(sed -n '/<InstallFrom>/,/<\/InstallFrom>/p' "$OUT" | grep '<Key>' | head -1 | sed -n 's/.*<Key>//;s|</Key>.*||p' | tr -d '\r')
+META_VAL_LINE=$(sed -n '/<InstallFrom>/,/<\/InstallFrom>/p' "$OUT" | grep '<Value>' | head -1 | sed -n 's/.*<Value>//;s|</Value>.*||p' | tr -d '\r')
 LEAK=0
 grep -q '__WIM_META_KEY__\|__WIM_META_VALUE__\|__WINRM_PASSWORD__\|__INSTALL_FILENAME__' "$OUT" 2>/dev/null && LEAK=1 || true
 KIND="other"
@@ -67,6 +69,38 @@ if command -v od >/dev/null 2>&1; then
 fi
 REP=0
 grep -q '<Value>REPLACE_ME</Value>' "$OUT" 2>/dev/null && REP=1 || true
-printf '{"sessionId":"d29db6","hypothesisId":"H1-H6","location":"render-autounattend.sh","message":"Autounattend rendered","data":{"installMediaKind":"%s","installFilename":"%s","renderedIndex":"%s","installImageMetaMode":"%s","placeholderLeak":%s,"utf8BomPresent":%s,"repoReplaceMePasswordStillPresent":%s},"timestamp":%s}\n' \
-  "$KIND" "$INSTFN" "$IDX" "$META_MODE" "$LEAK" "$BOM" "$REP" "$TS_MS" >>"$LOG" || true
+VIRTIO=0
+grep -q 'vioscsi.inf' "$OUT" 2>/dev/null && VIRTIO=1 || true
+CLOUD_OFF=0
+grep -q 'DisableCloudOptimizedContent' "$OUT" 2>/dev/null && CLOUD_OFF=1 || true
+if command -v jq >/dev/null 2>&1; then
+  jq -n --arg sid "932ce5" --arg hk "H1" --arg loc "render-autounattend.sh" \
+    --arg mk "$META_KEY_LINE" --arg mv "$META_VAL_LINE" --arg mm "$META_MODE" --argjson ts "$TS_MS" \
+    '{sessionId:$sid,hypothesisId:$hk,location:$loc,message:"InstallFrom MetaData (image selection)",data:{metaKey:$mk,metaValue:$mv,metaMode:$mm},timestamp:$ts}' >>"$LOG"
+  jq -n --arg sid "932ce5" --arg hk "H2" --arg loc "render-autounattend.sh" \
+    --arg p "$PATH_LINE" --arg instfn "$INSTFN" --arg kind "$KIND" --argjson ts "$TS_MS" \
+    '{sessionId:$sid,hypothesisId:$hk,location:$loc,message:"InstallFrom Path vs env filename",data:{installFromPath:$p,pkrInstallFilename:$instfn,pathMediaKind:$kind},timestamp:$ts}' >>"$LOG"
+  jq -n --arg sid "932ce5" --arg hk "H3" --arg loc "render-autounattend.sh" \
+    --argjson virtio "$VIRTIO" --argjson ts "$TS_MS" \
+    '{sessionId:$sid,hypothesisId:$hk,location:$loc,message:"VirtIO RunSynchronous references vioscsi.inf",data:{vioscsiInfReferenced:$virtio},timestamp:$ts}' >>"$LOG"
+  jq -n --arg sid "932ce5" --arg hk "H4" --arg loc "render-autounattend.sh" \
+    --argjson cloud "$CLOUD_OFF" --argjson leak "$LEAK" --argjson bom "$BOM" --argjson rep "$REP" --argjson ts "$TS_MS" \
+    '{sessionId:$sid,hypothesisId:$hk,location:$loc,message:"Cloud-update mitigation + placeholder/BOM",data:{disableCloudOptimizedContentLinePresent:$cloud,placeholderLeak:$leak,utf8BomPresent:$bom,replaceMeStillPresent:$rep},timestamp:$ts}' >>"$LOG"
+  NM_JSON=$( [ -n "${PKR_VAR_win11_install_image_name:-}" ] && echo true || echo false )
+  jq -n --arg sid "932ce5" --arg hk "H5" --arg loc "render-autounattend.sh" \
+    --arg idx "$IDX" --argjson nm "$NM_JSON" --argjson ts "$TS_MS" \
+    '{sessionId:$sid,hypothesisId:$hk,location:$loc,message:"PKR_VAR defaults used at render",data:{pkrWin11InstallWimIndex:$idx,pkrWin11InstallImageNameSet:$nm},timestamp:$ts}' >>"$LOG"
+else
+  NAME_SET=0
+  [ -n "${PKR_VAR_win11_install_image_name:-}" ] && NAME_SET=1
+  printf '{"sessionId":"932ce5","hypothesisId":"H1","location":"render-autounattend.sh","message":"InstallFrom MetaData","data":{"metaKey":"%s","metaValue":"%s","metaMode":"%s"},"timestamp":%s}\n' \
+    "$META_KEY_LINE" "$META_VAL_LINE" "$META_MODE" "$TS_MS" >>"$LOG" || true
+  printf '{"sessionId":"932ce5","hypothesisId":"H2","location":"render-autounattend.sh","message":"InstallFrom Path","data":{"installFromPath":"%s","pkrInstallFilename":"%s","pathMediaKind":"%s"},"timestamp":%s}\n' \
+    "$PATH_LINE" "$INSTFN" "$KIND" "$TS_MS" >>"$LOG" || true
+  printf '{"sessionId":"932ce5","hypothesisId":"H3","location":"render-autounattend.sh","message":"VirtIO","data":{"vioscsiInfReferenced":%s},"timestamp":%s}\n' "$VIRTIO" "$TS_MS" >>"$LOG" || true
+  printf '{"sessionId":"932ce5","hypothesisId":"H4","location":"render-autounattend.sh","message":"Mitigations","data":{"disableCloudOptimizedContentLinePresent":%s,"placeholderLeak":%s,"utf8BomPresent":%s,"replaceMeStillPresent":%s},"timestamp":%s}\n' \
+    "$CLOUD_OFF" "$LEAK" "$BOM" "$REP" "$TS_MS" >>"$LOG" || true
+  printf '{"sessionId":"932ce5","hypothesisId":"H5","location":"render-autounattend.sh","message":"PKR defaults","data":{"pkrWin11InstallWimIndex":"%s","pkrWin11InstallImageNameSet":%s},"timestamp":%s}\n' \
+    "$IDX" "$NAME_SET" "$TS_MS" >>"$LOG" || true
+fi
 # #endregion

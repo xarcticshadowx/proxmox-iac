@@ -1,10 +1,9 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <!--
     Lab template: run render-autounattend; local account password comes from WINRM_PASSWORD (Packer winrm_password).
-    WIM index: run packer/scripts/render-autounattend.ps1 (or .sh), or set PKR_VAR_win11_install_wim_index
-    before build (iac-packer runs render on container start).
-    Confirm edition index: dism /Get-WimInfo /WimFile:X:\sources\install.wim  (or install.esd â€” edit Path below).
+    Image selection: PKR_VAR_win11_install_wim_index (default 6) OR PKR_VAR_win11_install_image_name (exact Name from dism /Get-WimInfo â€” overrides index when set).
+    Run render-autounattend before packer build (iac-packer runs render on container start).
   -->
   <settings pass="windowsPE">
     <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -81,7 +80,7 @@
             <DiskID>0</DiskID>
             <PartitionID>3</PartitionID>
           </InstallTo>
-          <!-- Baked by render-autounattend (PKR_VAR_win11_install_filename; default install.wim). -->
+          <!-- Render replaces install.wim (PKR_VAR_win11_install_filename). Full/VL ISOs often have install.wim on the CCCOMA DVD letter (e.g. F:); many MCT ISOs use install.esd â€” verify with diskpart / dir &lt;DVD&gt;:\sources\install.* -->
           <InstallFrom>
             <Path>\sources\install.wim</Path>
             <MetaData wcm:action="add">
@@ -122,7 +121,7 @@
             <Name>packer</Name>
             <Group>Administrators</Group>
             <Password>
-              <Value>REPLACE_ME</Value>
+              <Value>testpass123</Value>
               <PlainText>true</PlainText>
             </Password>
           </LocalAccount>
@@ -130,7 +129,7 @@
       </UserAccounts>
       <AutoLogon>
         <Password>
-          <Value>REPLACE_ME</Value>
+          <Value>testpass123</Value>
           <PlainText>true</PlainText>
         </Password>
         <Enabled>true</Enabled>
@@ -147,4 +146,3 @@
     </component>
   </settings>
 </unattend>
-
