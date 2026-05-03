@@ -47,14 +47,16 @@ services:
       PKR_VAR_template_name: ${PKR_VAR_template_name}
       # Use :- defaults: unset/empty host .env would otherwise pass "" and override packer/win11.pkr.hcl variable defaults.
       PKR_VAR_iso_file: ${PKR_VAR_iso_file:-local:iso/_set_PKR_VAR_iso_file}
-      # Empty when unset so win11.pkr.hcl can omit sata0 (placeholder paths are not valid Proxmox volume names).
+      # Empty when unset — use scripts/build-supplemental-iso.sh + set path; required for virtio-scsi WinPE (vioscsi.inf).
       PKR_VAR_supplemental_iso_file: ${PKR_VAR_supplemental_iso_file:-}
+      PKR_VAR_allow_build_without_supplemental_iso: ${PKR_VAR_allow_build_without_supplemental_iso:-}
       PKR_VAR_vm_storage: ${PKR_VAR_vm_storage}
       PKR_VAR_bridge: ${PKR_VAR_bridge}
       PKR_VAR_winrm_username: ${PKR_VAR_winrm_username}
       PKR_VAR_win11_install_wim_index: ${PKR_VAR_win11_install_wim_index:-6}
       PKR_VAR_win11_install_filename: ${PKR_VAR_win11_install_filename:-install.wim}
       PKR_VAR_win11_install_image_name: ${PKR_VAR_win11_install_image_name:-}
+      PKR_VAR_virtio_vioscsi_rel_path: ${PKR_VAR_virtio_vioscsi_rel_path:-}
     networks:
       - iac
     restart: unless-stopped

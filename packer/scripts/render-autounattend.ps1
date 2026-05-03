@@ -28,7 +28,13 @@ $xml = $xml.Replace('__WIM_META_KEY__', $metaKey)
 $xml = $xml.Replace('__WIM_META_VALUE__', $metaVal)
 $xml = $xml.Replace('__INSTALL_FILENAME__', $installFile)
 $xml = $xml.Replace('__WINRM_PASSWORD__', $pw)
-if ($xml -match '__WIM_META_KEY__|__WIM_META_VALUE__|__INSTALL_FILENAME__|__WINRM_PASSWORD__') {
+$rel = $env:PKR_VAR_virtio_vioscsi_rel_path
+if ([string]::IsNullOrWhiteSpace($rel)) { $rel = 'vioscsi/w11/amd64' }
+$rel = $rel.Trim().Replace('\', '/')
+$xml = $xml.Replace('__VIRTIO_PATH_D__', "D:/$rel")
+$xml = $xml.Replace('__VIRTIO_PATH_E__', "E:/$rel")
+$xml = $xml.Replace('__VIRTIO_PATH_F__', "F:/$rel")
+if ($xml -match '__WIM_META_KEY__|__WIM_META_VALUE__|__INSTALL_FILENAME__|__WINRM_PASSWORD__|__VIRTIO_PATH_') {
     throw 'Autounattend.in.xml still contains unresolved placeholders after substitution.'
 }
 # UTF-8 without BOM — BOM-prefixed Autounattend.xml breaks Windows Setup XML parsing in PE/OOBE.

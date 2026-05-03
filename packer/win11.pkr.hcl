@@ -38,7 +38,10 @@ variable "iso_file" {
 }
 variable "supplemental_iso_file" {
   type        = string
-  description = "Proxmox datastore path to merged virtio+cidata ISO (build with packer/scripts/build-supplemental-iso.sh after render-autounattend). Empty string omits the second CD (sata0)."
+  description = <<-EOT
+    Proxmox path to merged virtio-win+cidata ISO (see packer/scripts/build-supplemental-iso.sh).
+    Required for normal builds: virtio-scsi-single has no WinPE inbox driver; answer/Autounattend.in.xml loads vioscsi.inf from this second CD (sata0). Empty omits sata0 — Setup then shows no disks unless you use non-VirtIO storage or PKR_VAR_allow_build_without_supplemental_iso (see packer-build-with-render.sh).
+EOT
   default     = ""
 }
 variable "vm_storage" { type = string }
