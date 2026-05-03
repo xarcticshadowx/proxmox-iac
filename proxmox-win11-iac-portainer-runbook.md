@@ -217,9 +217,8 @@ PKR_VAR_proxmox_username=terraform@pve
 PKR_VAR_template_vm_id=9025
 PKR_VAR_template_name=tpl-win11-25h2-dev
 PKR_VAR_iso_file=local:iso/Win11_25H2_English_x64.iso
-PKR_VAR_virtio_iso_file=local:iso/virtio-win.iso
+PKR_VAR_supplemental_iso_file=local:iso/supplemental.iso
 PKR_VAR_vm_storage=local-lvm
-PKR_VAR_iso_storage=local
 PKR_VAR_bridge=vmbr0
 PKR_VAR_winrm_username=packer
 
@@ -229,14 +228,14 @@ WINDOWS_ADMIN_PASSWORD=REDACTED
 
 ## Phase 4: Prepare Proxmox
 
-Upload these ISOs to your Proxmox ISO datastore:
+Upload **Windows 11** and the **merged supplemental** ISO (built with `packer/scripts/build-supplemental-iso.sh` from the Fedora virtio-win ISO plus rendered answer/scripts) to your Proxmox ISO datastore:
 
 ```text
 local:iso/Win11_25H2_English_x64.iso
-local:iso/virtio-win.iso
+local:iso/supplemental.iso
 ```
 
-Windows does not include native VirtIO support, so the VirtIO ISO supplies the signed drivers needed for paravirtualized disk and network devices ([Proxmox Windows VirtIO Drivers](https://pve.proxmox.com/wiki/Windows_VirtIO_Drivers)). Windows 11 also expects UEFI/Secure Boot capability and TPM 2.0 as part of Microsoft’s listed Windows 11 requirements ([Microsoft Windows 11 requirements](https://support.microsoft.com/en-us/windows/windows-11-system-requirements-86c11283-ea52-4782-9efd-7674389a7ba3)).
+Windows does not include native VirtIO support, so the supplemental image embeds the virtio-win tree plus bootstrap scripts. Drivers reference: ([Proxmox Windows VirtIO Drivers](https://pve.proxmox.com/wiki/Windows_VirtIO_Drivers)). Windows 11 also expects UEFI/Secure Boot capability and TPM 2.0 as part of Microsoft’s listed Windows 11 requirements ([Microsoft Windows 11 requirements](https://support.microsoft.com/en-us/windows/windows-11-system-requirements-86c11283-ea52-4782-9efd-7674389a7ba3)).
 
 Create a dedicated Proxmox API token, for example:
 
@@ -273,11 +272,10 @@ variable "proxmox_username" { type = string }
 variable "proxmox_token"    { type = string, sensitive = true, default = env("TF_VAR_proxmox_api_token") }
 variable "template_vm_id"   { type = number }
 variable "template_name"    { type = string }
-variable "iso_file"         { type = string }
-variable "virtio_iso_file"  { type = string }
-variable "vm_storage"       { type = string }
-variable "iso_storage"      { type = string }
-variable "bridge"           { type = string }
+variable "iso_file"               { type = string }
+variable "supplemental_iso_file"  { type = string }
+variable "vm_storage"             { type = string }
+variable "bridge"                 { type = string }
 variable "winrm_username"   { type = string }
 variable "winrm_password"   { type = string, sensitive = true, default = env("WINRM_PASSWORD") }
 
@@ -318,21 +316,10 @@ source "proxmox-iso" "win11" {
   }
 
   additional_iso_files {
-    iso_file = var.virtio_iso_file
+    iso_file = var.supplemental_iso_file
     unmount  = true
-  }
-
-  additional_iso_files {
-    cd_files = [
-      "answer/Autounattend.xml",
-      "scripts/bootstrap-winrm.ps1",
-      "scripts/install-virtio.ps1",
-      "scripts/install-qemu-agent.ps1",
-      "scripts/baseline-windows.ps1",
-      "scripts/sysprep.ps1"
-    ]
-    cd_label = "cidata"
-    unmount  = true
+    type     = "sata"
+    index    = 0
   }
 
   communicator   = "winrm"
@@ -773,7 +760,7 @@ Keep Packer builds versioned by updating `**PKR_VAR_***` and `**TF_VAR_***` in `
 PKR_VAR_template_vm_id=9026
 PKR_VAR_template_name=tpl-win11-26h2-dev
 PKR_VAR_iso_file=local:iso/Win11_26H2_English_x64.iso
-PKR_VAR_virtio_iso_file=local:iso/virtio-win.iso
+PKR_VAR_supplemental_iso_file=local:iso/supplemental.iso
 ```
 
 Run from the Packer container:

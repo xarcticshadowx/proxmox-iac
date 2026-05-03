@@ -46,9 +46,8 @@ services:
       PKR_VAR_template_vm_id: ${PKR_VAR_template_vm_id}
       PKR_VAR_template_name: ${PKR_VAR_template_name}
       PKR_VAR_iso_file: ${PKR_VAR_iso_file}
-      PKR_VAR_virtio_iso_file: ${PKR_VAR_virtio_iso_file}
+      PKR_VAR_supplemental_iso_file: ${PKR_VAR_supplemental_iso_file}
       PKR_VAR_vm_storage: ${PKR_VAR_vm_storage}
-      PKR_VAR_iso_storage: ${PKR_VAR_iso_storage}
       PKR_VAR_bridge: ${PKR_VAR_bridge}
       PKR_VAR_winrm_username: ${PKR_VAR_winrm_username}
       PKR_VAR_win11_install_wim_index: ${PKR_VAR_win11_install_wim_index:-6}
